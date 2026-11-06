@@ -53,7 +53,7 @@ console.log(await res.json());
 | `POST /api/v1/browser` | <Price product="browser" /> |
 
 <Callout>
-You are only charged when a request succeeds. Invalid input (`400`), failed agent runs and upstream failures (`502`/`503`) and anything else that returns a status of 400 or higher are never settled. [Error codes →](/docs/errors)
+You are only charged when a request succeeds. Invalid input (`400`), failed agent runs, upstream failures (`502`/`503`) and anything else that returns a status of 400 or higher are never settled. Research and Datasets settle when the job is **accepted**, because they keep running in the background. [Error codes →](/docs/errors)
 </Callout>
 
 ## Next

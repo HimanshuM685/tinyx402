@@ -7,65 +7,10 @@ import { USDT, whitechainSepolia, explorerTx, formatUsdt } from "@/lib/chains";
 import { erc20Abi } from "@/lib/wagmi";
 import { createPaidFetch, readSettlement, saveRun, type PayEvent, type Settlement } from "@/lib/pay-client";
 import { readSse } from "@/lib/sse";
-
-type Id = (typeof ENDPOINTS)[number]["id"];
-type Form = Record<string, string | boolean>;
-
-const DEFAULTS: Record<Id, Form> = {
-  search: { query: "x402 payment protocol", domain_type: "web", location: "", page: "0", purpose: "" },
-  fetch: { urls: "https://en.wikipedia.org/wiki/HTTP_402", format: "markdown", links: false, purpose: "" },
-  agent: { url: "https://news.ycombinator.com", goal: "Return the titles and URLs of the top 5 stories as JSON.", output_schema: "", max_steps: "30", browser_profile: "lite" },
-  "agent-sse": { url: "https://news.ycombinator.com", goal: "Return the titles and URLs of the top 5 stories as JSON.", output_schema: "", max_steps: "30", browser_profile: "lite" },
-  research: { query: "How does the x402 payment protocol work and who is adopting it?", mode: "deep", output_language: "", follow: true },
-  datasets: { prompt: "Specialty coffee shops in Oakland with their website and rating", target_rows: "10", follow: true },
-  browser: { url: "https://www.tinyfish.ai", timeout_seconds: "300", country_code: "" },
-};
+import { FIELDS, DEFAULTS, NOTES, buildRequest, type Id, type Form, type Value, type FieldSpec } from "@/lib/playground";
 
 const now = () => performance.now(); // called from event handlers only
 const newId = () => crypto.randomUUID();
-const opt = (v: string | boolean) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
-
-function buildRequest(id: Id, f: Form): { url: string; init: RequestInit; body?: Record<string, unknown> } | { error: string } {
-  const ep = ENDPOINTS.find((e) => e.id === id)!;
-  const json = (body: Record<string, unknown>) => ({
-    url: ep.path,
-    body,
-    init: { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
-  });
-  switch (id) {
-    case "search": {
-      const qs = new URLSearchParams();
-      for (const k of ["query", "domain_type", "location", "page", "purpose"]) if (opt(f[k])) qs.set(k, String(f[k]).trim());
-      return { url: `${ep.path}?${qs}`, init: { method: "GET" } };
-    }
-    case "fetch":
-      return json({ urls: String(f.urls).split(/\s+/).filter(Boolean), format: f.format, links: !!f.links, purpose: opt(f.purpose) });
-    case "agent":
-    case "agent-sse": {
-      let output_schema;
-      if (String(f.output_schema).trim()) {
-        try {
-          output_schema = JSON.parse(String(f.output_schema));
-        } catch {
-          return { error: "output_schema is not valid JSON" };
-        }
-      }
-      return json({ url: f.url, goal: f.goal, browser_profile: f.browser_profile, output_schema, agent_config: { max_steps: Number(f.max_steps) } });
-    }
-    case "research":
-      return json({ query: f.query, mode: f.mode, output_language: opt(f.output_language) });
-    case "datasets":
-      return json({ prompt: f.prompt, target_rows: Number(f.target_rows) });
-    case "browser":
-      return json({
-        url: opt(f.url),
-        timeout_seconds: Number(f.timeout_seconds),
-        proxy_config: opt(f.country_code) ? { country_code: String(f.country_code).toUpperCase() } : undefined,
-      });
-    default:
-      return { error: "Unknown endpoint" };
-  }
-}
 
 type LogLine = { t: number; label: string; detail?: string; tone?: "ok" | "warn" | "err" | "muted" };
 
@@ -101,6 +46,7 @@ export function Playground() {
   const [events, setEvents] = useState<{ event: string; data: unknown }[]>([]);
   const [result, setResult] = useState<{ status: number; body: unknown } | null>(null);
   const [settle, setSettle] = useState<Settlement | null>(null);
+  const [live, setLive] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const ep = ENDPOINTS.find((e) => e.id === id)!;
@@ -119,7 +65,7 @@ export function Playground() {
   const usdt = bal.data as bigint | undefined;
   const wrongChain = isConnected && chainId !== whitechainSepolia.id;
   const req = useMemo(() => buildRequest(id, form), [id, form]);
-  const price = quote(ep.product, "error" in req ? undefined : req.body);
+  const price = quote(ep.product, "error" in req ? forms[id] : req.body);
   const capBase = Math.round(Number(cap) * 10 ** USDT.decimals);
   const overCap = capBase < Number(price);
   const lowBalance = usdt !== undefined && usdt < BigInt(price);
@@ -132,6 +78,7 @@ export function Playground() {
     setEvents([]);
     setResult(null);
     setSettle(null);
+    setLive(null);
     const push = (e: PayEvent) => setLog((l) => [...l, describe(e)]);
     const abort = new AbortController();
     abortRef.current = abort;
@@ -149,8 +96,8 @@ export function Playground() {
         for await (const ev of readSse(res.body)) {
           evs.push(ev);
           setEvents([...evs]);
-          if (ev.event === "result") body = ev.data;
-          if (ev.event === "error") body = ev.data;
+          if (ev.event === "complete" || ev.event === "error") body = ev.data;
+          if (ev.event === "streaming_url") setLive((ev.data as { streaming_url?: string }).streaming_url ?? null);
           if (ev.event === "payment") {
             const p = ev.data as Settlement & { success: boolean };
             if (p.success) s = p;
@@ -195,7 +142,7 @@ export function Playground() {
         ms: Math.round(now() - started),
         payer: s?.payer ?? address,
         tx: s?.transaction,
-        input: req.init.body ? JSON.parse(String(req.init.body)) : Object.fromEntries(new URL(req.url, location.href).searchParams),
+        input: req.body,
         output: body,
       });
     } catch (e) {
@@ -231,7 +178,13 @@ export function Playground() {
             <span className="rounded bg-surface-2 px-1.5 py-0.5 text-muted">{ep.method}</span>
             <span className="truncate">{ep.path}</span>
           </div>
-          <Fields id={id} form={form} set={set} />
+          <Fields key={id} specs={FIELDS[id]} form={form} set={set} />
+          {"error" in req && (
+            <p role="alert" className="mt-1 rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">
+              {req.error}
+            </p>
+          )}
+          {NOTES[id] && <p className="mt-3 border-t border-line pt-3 text-xs text-muted">{NOTES[id]}</p>}
         </div>
 
         <div className="rounded-xl border border-line bg-surface p-4 text-sm">
@@ -284,7 +237,6 @@ export function Playground() {
             )}
           </div>
         )}
-        {"error" in req && <p className="text-xs text-danger">{req.error}</p>}
       </section>
 
       {/* Right: payment timeline + response */}
@@ -330,12 +282,23 @@ export function Playground() {
           )}
         </Panel>
 
+        {live && (
+          <Panel title="Live browser">
+            <div className="aspect-video overflow-hidden rounded-lg border border-line bg-code">
+              <iframe src={live} title="Live browser view" className="size-full" />
+            </div>
+            <a href={live} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs text-accent hover:underline">
+              Open in a new tab
+            </a>
+          </Panel>
+        )}
+
         {events.length > 0 && (
           <Panel title={`Stream · ${events.length} events`}>
             <ol className="max-h-72 space-y-1 overflow-y-auto font-mono text-[12px]">
               {events.map((e, i) => (
                 <li key={i} className="flex gap-2">
-                  <span className="w-16 shrink-0 text-accent">{e.event}</span>
+                  <span className="w-28 shrink-0 truncate text-accent">{e.event}</span>
                   <span className="truncate text-muted">{JSON.stringify(e.data)}</span>
                 </li>
               ))}
@@ -352,8 +315,8 @@ export function Playground() {
 }
 
 function ResultView({ body }: { body: unknown }) {
-  const b = body as { report?: string; event?: string; result?: unknown } | null;
-  const report = b?.report ?? (b?.event === "final_result" && typeof b.result === "string" ? b.result : undefined);
+  const b = body as { event?: string; result?: unknown } | null;
+  const report = b?.event === "final_result" && typeof b.result === "string" ? b.result : undefined;
   const [raw, setRaw] = useState(!report);
   return (
     <div>
@@ -392,97 +355,94 @@ function Row({ k, v }: { k: React.ReactNode; v: React.ReactNode }) {
 
 const input = "w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm outline-none focus:border-accent";
 
-function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
+function Fields({ specs, form, set }: { specs: FieldSpec[]; form: Form; set: (k: string, v: Value) => void }) {
+  const basic = specs.filter((f) => !f.advanced);
+  const adv = specs.filter((f) => f.advanced);
+  const advSet = adv.some((f) => form[f.key] !== undefined && form[f.key] !== "" && form[f.key] !== false);
+  const [open, setOpen] = useState(false);
+  const shown = open || advSet; // stays open while any advanced field is set
   return (
-    <label className="mb-3 block last:mb-0">
-      <span className="mb-1 block text-xs font-medium text-muted">{label}</span>
-      {children}
-      {hint && <span className="mt-1 block text-[11px] text-muted">{hint}</span>}
-    </label>
+    <>
+      <FieldGrid specs={basic} form={form} set={set} />
+      {adv.length > 0 && (
+        <div className="mt-3 rounded-lg border border-line px-3 py-2">
+          <button
+            type="button"
+            aria-expanded={shown}
+            onClick={() => setOpen(!shown)}
+            className="flex w-full items-center justify-between text-left text-xs font-medium text-muted hover:text-ink"
+          >
+            Advanced options ({adv.length})
+            <span aria-hidden>{shown ? "−" : "+"}</span>
+          </button>
+          {shown && (
+            <div className="mt-3">
+              <FieldGrid specs={adv} form={form} set={set} />
+            </div>
+          )}
+        </div>
+      )}
+    </>
   );
 }
 
-function Fields({ id, form, set }: { id: Id; form: Form; set: (k: string, v: string | boolean) => void }) {
-  const text = (k: string, props: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
-    <input className={input} value={String(form[k] ?? "")} onChange={(e) => set(k, e.target.value)} {...props} />
+function FieldGrid({ specs, form, set }: { specs: FieldSpec[]; form: Form; set: (k: string, v: Value) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-x-3">
+      {specs.map((f) => (
+        <div key={f.key} className={f.half ? "col-span-1" : "col-span-2"}>
+          <Control spec={f} value={form[f.key]} onChange={(v) => set(f.key, v)} />
+        </div>
+      ))}
+    </div>
   );
-  const area = (k: string, rows = 3, ph = "") => (
-    <textarea className={`${input} font-mono text-[13px]`} rows={rows} placeholder={ph} value={String(form[k] ?? "")} onChange={(e) => set(k, e.target.value)} />
+}
+
+function Control({ spec: f, value, onChange }: { spec: FieldSpec; value: Value | undefined; onChange: (v: Value) => void }) {
+  const id = `f-${f.key}`;
+  if (f.kind === "check")
+    return (
+      <label htmlFor={id} className="mb-3 flex items-center gap-2 text-sm">
+        <input id={id} type="checkbox" checked={!!value} onChange={(e) => onChange(e.target.checked)} className="accent-[var(--accent)]" />
+        {f.label}
+      </label>
+    );
+  const v = typeof value === "string" ? value : "";
+  const control =
+    f.kind === "select" ? (
+      <select id={id} className={input} value={v} onChange={(e) => onChange(e.target.value)}>
+        {f.options!.map((o) => (
+          <option key={o} value={o}>
+            {o || "(default)"}
+          </option>
+        ))}
+      </select>
+    ) : f.kind === "area" || f.kind === "list" || f.kind === "json" ? (
+      <textarea
+        id={id}
+        rows={f.kind === "area" ? 3 : f.kind === "json" ? 4 : 2}
+        className={`${input} ${f.kind === "area" ? "" : "font-mono text-[13px]"}`}
+        placeholder={f.placeholder}
+        value={v}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    ) : (
+      <input
+        id={id}
+        className={input}
+        inputMode={f.kind === "number" ? "numeric" : undefined}
+        placeholder={f.placeholder}
+        value={v}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
+  return (
+    <div className="mb-3">
+      <label htmlFor={id} className="mb-1 block text-xs font-medium text-muted">
+        {f.label}
+      </label>
+      {control}
+      {f.hint && <span className="mt-1 block text-[11px] text-muted">{f.hint}</span>}
+    </div>
   );
-  const check = (k: string, label: string) => (
-    <label className="flex items-center gap-2 text-sm">
-      <input type="checkbox" checked={!!form[k]} onChange={(e) => set(k, e.target.checked)} className="accent-[var(--accent)]" />
-      {label}
-    </label>
-  );
-  const select = (k: string, opts: string[]) => (
-    <select className={input} value={String(form[k])} onChange={(e) => set(k, e.target.value)}>
-      {opts.map((o) => <option key={o}>{o}</option>)}
-    </select>
-  );
-  switch (id) {
-    case "search":
-      return (
-        <>
-          <Field label="Query">{text("query")}</Field>
-          <Field label="Domain type">{select("domain_type", ["web", "news", "research_paper"])}</Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Location (country)">{text("location", { placeholder: "US", maxLength: 2 })}</Field>
-            <Field label="Page">{text("page", { type: "number", min: 0, max: 10 })}</Field>
-          </div>
-          <Field label="Purpose (optional)">{text("purpose", { placeholder: "Why you are searching" })}</Field>
-        </>
-      );
-    case "fetch":
-      return (
-        <>
-          <Field label="URLs" hint="One per line, up to 10">{area("urls", 3)}</Field>
-          <Field label="Format">{select("format", ["markdown", "html", "json"])}</Field>
-          <Field label="Purpose (optional)">{text("purpose")}</Field>
-          {check("links", "Include outbound links")}
-        </>
-      );
-    case "agent":
-    case "agent-sse":
-      return (
-        <>
-          <Field label="Start URL">{text("url")}</Field>
-          <Field label="Goal">{area("goal", 3)}</Field>
-          <Field label="Output schema (optional JSON Schema)">{area("output_schema", 3, '{"type":"object","properties":{...}}')}</Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Max steps">{text("max_steps", { type: "number", min: 1, max: 500 })}</Field>
-            <Field label="Browser">{select("browser_profile", ["lite", "stealth"])}</Field>
-          </div>
-        </>
-      );
-    case "research":
-      return (
-        <>
-          <Field label="Question">{area("query", 3)}</Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Mode" hint="max costs more">{select("mode", ["deep", "max"])}</Field>
-            <Field label="Report language">{text("output_language", { placeholder: "en" })}</Field>
-          </div>
-          {check("follow", "Follow progress after paying (5-45 min)")}
-        </>
-      );
-    case "datasets":
-      return (
-        <>
-          <Field label="Describe the dataset">{area("prompt", 3)}</Field>
-          <Field label="Target rows" hint="Priced per row, 1-250">{text("target_rows", { type: "number", min: 1, max: 250 })}</Field>
-          {check("follow", "Follow the fill, then load rows")}
-        </>
-      );
-    case "browser":
-      return (
-        <>
-          <Field label="Start URL (optional)">{text("url")}</Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Idle timeout (s)">{text("timeout_seconds", { type: "number", min: 5, max: 3600 })}</Field>
-            <Field label="Proxy country">{text("country_code", { placeholder: "US", maxLength: 2 })}</Field>
-          </div>
-        </>
-      );
-  }
 }

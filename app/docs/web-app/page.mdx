@@ -16,7 +16,22 @@ The playground shows your USDT balance next to the price of the selected endpoin
 
 ### Pick an API and fill the form
 
-Choose Search, Fetch, Agent, Agent (SSE), Research, Datasets or Browser. Defaults are pre-filled so you can run right away. For Research and Datasets, the playground follows the free event stream after payment and shows the report or rows when they are ready.
+Choose **Search, Fetch, Agent, Agent (SSE), Research, Datasets** or **Browser**. Each form starts with working defaults, so you can run it right away.
+
+- The main fields are always visible. Everything else the endpoint accepts is under **Advanced options**, which opens automatically when one of those fields is set. Each field maps one-to-one to the [API reference](/docs/api/search).
+- Empty fields are left out of the request.
+- Lists (URLs, CSS selectors, domains) take one entry per line or comma-separated values.
+- JSON fields (agent `output_schema`, dataset `spec`) must be valid JSON.
+- The form is checked against the same schema the server uses **before** your wallet is asked to sign. You never sign for a request that would be rejected.
+- The **Cost** row updates live. For Research it depends on `mode`, and for Datasets on `target_rows`.
+
+| Tab | What happens after you pay |
+| --- | --- |
+| Search, Fetch, Browser | The JSON response appears straight away. |
+| Agent | Waits up to 280 s for the run, then shows `result`. Not charged if the run fails. |
+| Agent (SSE) | Streams each step. A **Live browser** panel shows the agent's browser in real time. |
+| Research | Shows the run ID, then (with *Follow progress* ticked) streams `plan_updated`, `source_fetched`… and renders the final report. You can switch to the raw JSON. |
+| Datasets | Shows the planned columns, streams `row` events as they land, then loads the rows. |
 
 ### Set a spend cap
 

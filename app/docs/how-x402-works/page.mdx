@@ -56,9 +56,9 @@ The final response carries `PAYMENT-RESPONSE`:
 { "success": true, "transaction": "0x8c1f…", "network": "eip155:1874", "payer": "0xYou…" }
 ```
 
-## Streaming endpoints
+## Streaming: Agent (SSE)
 
-The SSE endpoints (`/agent/run-sse`, `/research?stream=1`) verify the payment before the stream opens and settle after the run completes. Because headers are already sent by then, the receipt arrives as the last event:
+`/api/v1/agent/run-sse` verifies the payment before the stream opens and settles only when the run reports `COMPLETED`. Headers are already sent by then, so the receipt arrives as the last event:
 
 ```text
 event: payment
@@ -69,3 +69,7 @@ data: {"ok":true}
 ```
 
 If the run fails, you receive `event: error` with `"charged": false`, and the authorization is never submitted.
+
+## Long-running jobs: Research and Datasets
+
+Research (5–45 minutes) and dataset fills (5–20 minutes) outlast any HTTP request. Their paid call **starts** the job and settles as soon as TinyFish accepts it. The response carries the job ID plus `events_url` and `poll_url`, which you can follow **for free**. A job that later fails is not refunded automatically.

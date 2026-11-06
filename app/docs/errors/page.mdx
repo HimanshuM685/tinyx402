@@ -28,9 +28,13 @@ These are thrown by `@x402/fetch` before anything is sent:
 | `Failed to create payment payload` | Signing failed, or the user rejected the request in their wallet. |
 | `Payment already attempted` | You passed a request that already had `PAYMENT-SIGNATURE`. |
 
+## Background jobs
+
+Research and Datasets settle when the job is accepted. If the job later ends `FAILED`, `CANCELLED` or `TIMED_OUT`, the poll endpoint reports it, but the payment is not reversed automatically.
+
 ## SSE
 
-Streaming endpoints return `402` and `400` as normal JSON responses before the stream opens. After it opens, failures arrive as:
+`/api/v1/agent/run-sse` returns `402` and `400` as normal JSON responses before the stream opens. After it opens, failures arrive as:
 
 ```text
 event: error

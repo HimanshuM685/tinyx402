@@ -68,6 +68,33 @@ async function main() {
   await assert.rejects(relayAgent(sse([{ type: "COMPLETE", status: "FAILED", error: "boom" }]), () => {}), /boom/);
   await assert.rejects(relayAgent(sse([{ type: "STARTED" }]), () => {}), /ended before/);
 
+  // Playground form -> request: defaults are valid for every endpoint; mapping rules hold.
+  const { buildRequest, DEFAULTS, FIELDS } = await import("../lib/playground");
+  for (const id of Object.keys(FIELDS)) {
+    const r = buildRequest(id, DEFAULTS[id]);
+    assert.ok(!("error" in r), `defaults for ${id}: ${"error" in r ? r.error : ""}`);
+  }
+  const s1 = buildRequest("search", { query: " x402 ", location: "us", page: "", include_thumbnail: true });
+  assert.ok(!("error" in s1));
+  assert.equal(s1.url, "/api/v1/search?query=x402&location=US&include_thumbnail=true"); // blank page omitted
+  const a1 = buildRequest("agent", { url: "x.com", goal: "g", "agent_config.max_steps": "12", "proxy_config.country_code": "de" });
+  assert.ok(!("error" in a1));
+  assert.deepEqual(a1.body, { url: "x.com", goal: "g", agent_config: { max_steps: 12 }, proxy_config: { country_code: "DE", enabled: true } });
+  const f1 = buildRequest("fetch", { urls: "https://a.com\nhttps://b.com", include_selectors: "article, main" });
+  assert.ok(!("error" in f1));
+  assert.deepEqual(f1.body, { urls: ["https://a.com", "https://b.com"], include_selectors: ["article", "main"] });
+  const b1 = buildRequest("browser", { "proxy_config.enabled": true });
+  assert.ok(!("error" in b1));
+  assert.deepEqual(b1.body, { proxy_config: { enabled: false } }); // "direct egress" checkbox
+  assert.equal("error" in buildRequest("agent", { url: "x", goal: "g", "agent_config.max_steps": "1.5" }), true);
+  assert.equal("error" in buildRequest("agent", { url: "x", goal: "g", output_schema: "{bad" }), true);
+  assert.equal("error" in buildRequest("agent", { url: "x", goal: "g", "agent_config.max_duration_seconds": "900" }), true); // >280
+  assert.equal("error" in buildRequest("datasets", { prompt: "cafes", target_rows: "300" }), true);
+  assert.equal("error" in buildRequest("search", { query: "q", recency_minutes: "5", after_date: "2026-01-01" }), true);
+  const d1 = buildRequest("datasets", { prompt: "x", spec: '{"name":"n","description":"d","columns":[{"name":"a"}]}', follow: true });
+  assert.ok(!("error" in d1));
+  assert.equal("prompt" in d1.body || "follow" in d1.body, false); // spec wins, local fields never sent
+
   console.log("selftest ok");
 }
 
