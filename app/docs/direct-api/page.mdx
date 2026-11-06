@@ -28,7 +28,7 @@ const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
 });
 
 // GET
-const res = await paidFetch("https://your-domain.com/api/v1/search?q=example");
+const res = await paidFetch("https://your-domain.com/api/v1/search?query=example");
 console.log(await res.json());
 
 // Receipt
@@ -51,6 +51,7 @@ const res = await paidFetch("https://your-domain.com/api/v1/agent/run-sse", {
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ url: "https://news.ycombinator.com", goal: "Top 3 story titles" }),
 });
+// The agent's SSE events are relayed with names: started, streaming_url, progress, complete; then payment, done.
 
 const reader = res.body!.pipeThrough(new TextDecoderStream()).getReader();
 let buf = "";
@@ -116,8 +117,8 @@ res = session.get("https://your-domain.com/api/v1/search", params={"q": "example
 print(res.json())
 print(decode_payment_response_header(res.headers["PAYMENT-RESPONSE"]))
 
-res = session.post("https://your-domain.com/api/v1/research", json={"query": "x402 adoption", "depth": "quick"})
-print(res.json()["report"])
+res = session.post("https://your-domain.com/api/v1/fetch", json={"urls": ["https://www.tinyfish.ai/"]})
+print(res.json()["results"][0]["text"])
 ```
 
 For asyncio, use `x402Client` and `x402HttpxClient` from `x402.http.clients`. The configuration is the same.
@@ -127,14 +128,14 @@ For asyncio, use `x402Client` and `x402HttpxClient` from `x402.http.clients`. Th
 With curl you cannot sign, but you can see the protocol. Ask for the price:
 
 ```bash
-curl -si "https://your-domain.com/api/v1/search?q=example" | grep -i payment-required \
+curl -si "https://your-domain.com/api/v1/search?query=example" | grep -i payment-required \
   | cut -d' ' -f2 | tr -d '\r' | base64 -d | jq
 ```
 
 Then send a payload you signed elsewhere:
 
 ```bash
-curl -s "https://your-domain.com/api/v1/search?q=example" \
+curl -s "https://your-domain.com/api/v1/search?query=example" \
   -H "PAYMENT-SIGNATURE: $PAYMENT_PAYLOAD_B64" -D - | grep -i payment-response
 ```
 
@@ -163,5 +164,6 @@ The repository ships a ready-made client:
 ```bash
 PRIVATE_KEY=0x… TINYX402_URL=https://your-domain.com pnpm pay search "x402"
 PRIVATE_KEY=0x… pnpm pay agent https://news.ycombinator.com "top 3 titles" --stream
-PRIVATE_KEY=0x… pnpm pay research "state of x402" --stream
+PRIVATE_KEY=0x… pnpm pay research "state of x402"        # starts the run, then follows its free event stream
+PRIVATE_KEY=0x… pnpm pay datasets "Coffee shops in Oakland with website" 10
 ```

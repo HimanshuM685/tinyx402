@@ -5,7 +5,7 @@ export const metadata = { title: "For coding agents" };
 Paste this into your agent's context, or point it at [`/llms.txt`](/llms.txt) and the [OpenAPI spec](/api/openapi).
 
 ```text
-tinyx402: web APIs paid per request via x402 (no API key).
+tinyx402: TinyFish web APIs paid per request via x402 (no API key).
 
 Payment
   protocol   x402 v2, scheme "exact" (EIP-3009, gasless for payer)
@@ -14,29 +14,36 @@ Payment
   client     @x402/fetch wrapFetchWithPaymentFromConfig + @x402/evm/exact/client ExactEvmScheme
   safety     ALWAYS set spendControls.allowedAssets with maxAmountPerPayment
 
-Endpoints (price in USDT base units)
-  GET  /api/v1/search?q=&limit=            10000   -> { results: [{ title, url, snippet, source }] }
-  POST /api/v1/fetch      { urls[], format, render }       15000   -> { results: [{ ok, title, content }] }
-  POST /api/v1/agent/run  { url, goal, output_schema? }    50000   -> { status, result, steps }
-  POST /api/v1/agent/run-sse  (same body, text/event-stream) 50000
-  POST /api/v1/research   { query, depth }                200000   -> { report, sources }
-  POST /api/v1/research?stream=1  (SSE)                   200000
-  POST /api/v1/browser    { timeout_seconds }              30000   -> { cdp_url, session_id }
+Paid endpoints (price in USDT base units)
+  GET  /api/v1/search?query=&location=&domain_type=      10000  -> { results: [{ position, title, snippet, url, site_name }] }
+  POST /api/v1/fetch     { urls[], format, purpose? }    15000  -> { results: [{ url, title, text }], errors: [] }
+  POST /api/v1/agent/run { url, goal, output_schema? }   50000  -> { run_id, status, result }
+  POST /api/v1/agent/run-sse   (same body, SSE)          50000
+  POST /api/v1/research  { query, mode: deep|max }      200000 (max: 500000) -> { research_run_id, events_url }
+  POST /api/v1/datasets  { prompt, target_rows }         20000 x target_rows -> { id, rows_url, events_url }
+  POST /api/v1/browser   { url?, proxy_config? }         30000  -> { session_id, cdp_url }
+
+Free follow-ups (IDs from the paid call)
+  GET /api/v1/research/{id}            GET /api/v1/research/{id}/events (SSE)
+  GET /api/v1/datasets/{id}            GET /api/v1/datasets/{id}/rows?after=   GET /api/v1/datasets/{id}/events?run= (SSE)
+  DELETE /api/v1/browser/{id}
 
 Rules
-  - 4xx/5xx responses are never charged; retry 502 once, do not retry 400.
-  - SSE endpoints send the settlement as a final `payment` event, not a header.
+  - 4xx/5xx responses are never charged. Retry 502/503/504 once; do not retry 400.
+  - Research and Datasets settle when the job is accepted; they then run 5-45 min in the background.
+  - agent/run-sse sends the settlement as a final `payment` event, not a header.
   - Successful JSON responses carry a PAYMENT-RESPONSE header (base64 JSON with tx hash).
 ```
 
 ## Picking an endpoint
 
-- **You know the URL** → `fetch` with `render: false` (fast) or `true` (JS-heavy pages).
+- **You know the URL** → `fetch`. Pass `purpose`, and use `include_selectors` to scope the extraction.
 - **You need URLs** → `search`, then `fetch` the best hits.
 - **Interaction needed** (clicks, forms, pagination) → `agent/run`, with an `output_schema` so the result is typed.
-- **Open question across many sources** → `research`.
+- **Open question across many sources** → `research`, then follow `events_url`.
+- **Many entities with the same fields** → `datasets`, then read `rows_url`.
 - **You want to drive the browser yourself** → `browser`, then `chromium.connectOverCDP(cdp_url)`.
 
 ## Budgeting
 
-A `maxAmountPerPayment` of `200000` (0.20 USDT) covers every endpoint. Use `50000` to exclude research. Agents can read prices in advance from the `402` response or from `x-x402.amount` in the OpenAPI spec.
+A `maxAmountPerPayment` of `200000` (0.20 USDT) covers every fixed-price endpoint and deep research. Use `50000` to exclude research. Datasets cost `20000 × target_rows`, so set the cap to fit. Agents can read the exact price from the `402` response before paying.

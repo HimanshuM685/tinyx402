@@ -2,20 +2,26 @@ export const metadata = { title: "Fetch API" };
 
 # Fetch
 
-Clean, readable content from one or more URLs. Navigation, ads and boilerplate are stripped with Mozilla Readability, and the result comes back as Markdown, text or HTML.
+Clean extracted content from up to 10 URLs in one call. JavaScript-heavy pages are rendered when needed, and PDFs and JSON endpoints work too.
 
 <Endpoint method="POST" path="/api/v1/fetch" product="fetch" />
 
-One payment covers up to 10 URLs. You are charged only if at least one succeeds.
+One payment covers the whole batch. Each URL is processed independently, and per-URL failures appear in `errors[]`. **You are charged only if at least one URL succeeds.**
 
 ## Body
 
-| Field | Type | Default | |
-| --- | --- | --- | --- |
-| `urls` | string[] | — | Required. 1–10 public http(s) URLs. |
-| `format` | `"markdown"` \| `"text"` \| `"html"` | `"markdown"` | |
-| `render` | boolean | `true` | Render in a real Chromium (runs JS). `false` uses a plain HTTP fetch, which is much faster. |
-| `links` | boolean | `false` | Include up to 200 absolute links. |
+| Field | Type | |
+| --- | --- | --- |
+| `urls` | string[] | **Required.** 1–10 URLs. |
+| `format` | `markdown` \| `html` \| `json` | Default `markdown`. |
+| `purpose` | string | Why you are fetching. Max 2000 chars. |
+| `links` / `image_links` / `iframe_links` | boolean | Also return outbound, image or iframe URLs. |
+| `page_metadata` | boolean | Return canonical, Open Graph, Twitter and robots metadata. |
+| `ttl` | integer | Cache freshness tolerance in seconds. `0` forces a live fetch. Omit to accept any cached entry. |
+| `per_url_timeout_ms` | integer | 1–110000. |
+| `include_selectors` / `exclude_selectors` | string[] | CSS scoping, up to 20 each. `exclude` is applied first. |
+| `if_none_match` / `if_modified_since` | string | Conditional fetch, single URL only. Gives `not_modified: true` when nothing changed. |
+| `include_etag_and_last_modified` | boolean | Return validators so you can replay them later. |
 
 ## Example
 
@@ -23,7 +29,10 @@ One payment covers up to 10 URLs. You are charged only if at least one succeeds.
 await paidFetch("https://your-domain.com/api/v1/fetch", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ urls: ["https://en.wikipedia.org/wiki/HTTP_402"], render: false }),
+  body: JSON.stringify({
+    urls: ["https://www.tinyfish.ai/", "https://en.wikipedia.org/wiki/Web_scraping"],
+    include_selectors: ["article", "main"],
+  }),
 });
 ```
 
@@ -31,20 +40,19 @@ await paidFetch("https://your-domain.com/api/v1/fetch", {
 
 ```json
 {
-  "took_ms": 830,
   "results": [
     {
-      "ok": true,
-      "url": "https://en.wikipedia.org/wiki/HTTP_402",
-      "final_url": "https://en.wikipedia.org/wiki/List_of_HTTP_status_codes",
-      "title": "List of HTTP status codes",
-      "byline": null,
-      "excerpt": "This article lists standard and notable non-standard HTTP response status codes…",
-      "content": "This article lists standard and notable non-standard [HTTP response status codes](…)…",
+      "url": "https://www.tinyfish.ai/",
+      "final_url": "https://www.tinyfish.ai/",
+      "title": "TinyFish | Enterprise Web Agent Infrastructure",
+      "description": "TinyFish provides enterprise infrastructure for AI web agents.",
+      "language": "en",
       "format": "markdown",
-      "word_count": 5942
-    },
-    { "ok": false, "url": "https://does-not-exist.example", "error": "Cannot resolve host: does-not-exist.example" }
-  ]
+      "text": "# TinyFish | Enterprise Web Agent Infrastructure\n\n..."
+    }
+  ],
+  "errors": []
 }
 ```
+
+If every URL fails, the response is `502` with `"error": "all_failed"` and the per-URL `errors`, and nothing is settled.

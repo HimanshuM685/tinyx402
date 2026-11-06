@@ -2,31 +2,33 @@ export const metadata = { title: "Agent run (SSE) API" };
 
 # Agent run (SSE)
 
-Same as [Agent run](/docs/api/agent), but streams each browser action as a Server-Sent Event while the run is in progress.
+Same as [Agent run](/docs/api/agent), but streams progress as Server-Sent Events, including a live browser view URL.
 
 <Endpoint method="POST" path="/api/v1/agent/run-sse" product="agent" />
 
-The body is identical to `/api/v1/agent/run`. The response is `text/event-stream`.
+The body is identical to `/api/v1/agent/run`. The response is `text/event-stream`. Each upstream event is relayed with its `type` lowercased as the event name, and the payment receipt is appended at the end.
 
 ## Events
 
 | Event | Data |
 | --- | --- |
-| `step` | `{ step, action, input }`, one per browser action |
-| `result` | `{ status, result }` |
+| `started` | `{ run_id }` |
+| `streaming_url` | `{ streaming_url }`, a live view of the browser you can embed in an iframe |
+| `progress` | `{ purpose }`, what the agent is doing |
+| `complete` | `{ status, result, error? }` |
 | `payment` | `{ success, transaction, payer, network, paymentResponse }` |
 | `error` | `{ error: "run_failed", message, charged: false }` |
 | `done` | `{ ok }` |
 
 ```text
-event: step
-data: {"step":0,"action":"navigate","input":{"url":"https://news.ycombinator.com"}}
+event: started
+data: {"type":"STARTED","run_id":"a1b2…"}
 
-event: step
-data: {"step":1,"action":"observe","input":{}}
+event: streaming_url
+data: {"type":"STREAMING_URL","streaming_url":"https://…"}
 
-event: result
-data: {"status":"completed","result":[…]}
+event: complete
+data: {"type":"COMPLETE","status":"COMPLETED","result":{…}}
 
 event: payment
 data: {"success":true,"transaction":"0x…","payer":"0x…","network":"eip155:1874"}
@@ -37,6 +39,4 @@ data: {"ok":true}
 
 ## Billing
 
-The payment is **verified** before the stream opens and **settled** only after `result`. The receipt arrives as the `payment` event, not as a `PAYMENT-RESPONSE` header. If the run errors or you disconnect early, the authorization is not submitted and you are not charged.
-
-Comment lines (`: ping`) are sent every 15 seconds to keep proxies from closing the connection.
+The payment is **verified** before the stream opens and **settled** only when `complete` arrives with `status: "COMPLETED"`. If the run fails or is cancelled, or the stream breaks first, you get `event: error` and the authorization is never submitted.

@@ -5,12 +5,12 @@ import { HTTPFacilitatorClient, x402HTTPResourceServer, type RouteConfig } from 
 import { decodePaymentResponseHeader } from "@x402/core/http";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { NETWORK, USDT, FACILITATOR_URL } from "./chains";
-import { PRICES, type Product } from "./pricing";
+import { PRICES, quote, type Product } from "./pricing";
 import { rateLimit } from "./ratelimit";
 import { recordRun } from "./db";
 import { sseResponse, type Emit } from "./sse";
-import { UrlError } from "./safe-url";
 import { issues } from "./schemas";
+import { upstreamFailure, UpstreamError } from "./tinyfish";
 import type { z } from "zod";
 
 const network = (process.env.X402_NETWORK || NETWORK) as `${string}:${string}`;
@@ -23,6 +23,8 @@ export const facilitator = new HTTPFacilitatorClient({
 
 export const server = new x402ResourceServer(facilitator).register(network, new ExactEvmScheme());
 
+const DYNAMIC: Product[] = ["research", "datasets"];
+
 /** Route config for a product, using the explicit asset/amount/extra price shape. */
 export function paid(product: Product, description: string): RouteConfig {
   if (!/^0x[0-9a-fA-F]{40}$/.test(payTo)) throw new Error("PAY_TO_ADDRESS is not set to a valid EVM address");
@@ -31,11 +33,18 @@ export function paid(product: Product, description: string): RouteConfig {
       scheme: "exact",
       network,
       payTo,
-      price: {
-        asset, // Whitechain Sepolia USDT
-        amount: PRICES[product],
-        extra: { name: "Tether USD", version: "1" },
-      },
+      price: DYNAMIC.includes(product)
+        ? // research mode / dataset row count change the price; quoted from the request body
+          async (ctx) => ({
+            asset,
+            amount: quote(product, await ctx.adapter.getBody?.()),
+            extra: { name: "Tether USD", version: "1" },
+          })
+        : {
+            asset, // Whitechain Sepolia USDT
+            amount: PRICES[product],
+            extra: { name: "Tether USD", version: "1" },
+          },
       maxTimeoutSeconds: 300,
     },
     description,
@@ -67,7 +76,7 @@ export function paidRoute(product: Product, description: string, handler: Handle
       const output = await res.clone().json().catch(() => null);
       recordRun({
         endpoint: req.nextUrl.pathname,
-        amount: PRICES[product],
+        amount: quote(product, input),
         payer: settle?.payer,
         txHash: settle?.transaction,
         network: settle?.network ?? network,
@@ -91,14 +100,16 @@ function safeDecode(h: string) {
 
 /**
  * Streaming variant. withX402 buffers the body before settling, which defeats SSE,
- * so here we verify up front, stream events, and settle only after the run succeeds.
- * Settlement result is sent as a final `payment` event (headers are already gone).
+ * so: verify payment, open the upstream stream (upstream 4xx/5xx -> JSON error, not charged),
+ * relay events, settle only if relay() says the run succeeded. The receipt is sent as a
+ * final `payment` event because headers are already gone.
  */
 export function paidStream<T>(
   product: Product,
   description: string,
   schema: z.ZodType<T>,
-  run: (input: T, emit: Emit, signal: AbortSignal) => Promise<unknown>,
+  open: (input: T, signal: AbortSignal) => Promise<Response>,
+  relay: (upstream: Response, emit: Emit) => Promise<unknown>, // throws if the run failed
 ): Handler {
   let http: x402HTTPResourceServer | null = null;
   let ready: Promise<void> | null = null;
@@ -127,19 +138,34 @@ export function paidStream<T>(
     if (result.type !== "payment-verified") {
       return NextResponse.json({ error: "payment_required" }, { status: 402 });
     }
+    const cancel = (status: number) => result.cancellationDispatcher.cancel({ reason: "handler_failed", responseStatus: status });
 
     const parsed = schema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) {
-      await result.cancellationDispatcher.cancel({ reason: "handler_failed", responseStatus: 400 });
+      await cancel(400);
       return badRequest("Invalid body", issues(parsed.error));
     }
     const input = parsed.data;
 
+    const abort = new AbortController();
+    let upstream: Response;
+    try {
+      upstream = await open(input, abort.signal);
+      if (!upstream.ok || !upstream.body) {
+        throw new UpstreamError(upstream.status, await upstream.json().catch(() => null));
+      }
+    } catch (e) {
+      const res = upstreamFailure(e);
+      await cancel(res.status);
+      return res;
+    }
+
     const started = Date.now();
     return sseResponse(async (emit, signal) => {
+      signal.addEventListener("abort", () => abort.abort());
       let output: unknown;
       try {
-        output = await run(input, emit, signal);
+        output = await relay(upstream, emit);
       } catch (error) {
         await result.cancellationDispatcher.cancel({ reason: "handler_threw", error });
         emit("error", { error: "run_failed", message: (error as Error).message, charged: false });
@@ -163,7 +189,7 @@ export function paidStream<T>(
       if (settle.success) {
         recordRun({
           endpoint: req.nextUrl.pathname,
-          amount: PRICES[product],
+          amount: result.paymentRequirements.amount,
           payer: settle.payer,
           txHash: settle.transaction,
           network: settle.network,
@@ -180,15 +206,4 @@ export function paidStream<T>(
 
 export function badRequest(message: string, details?: unknown) {
   return NextResponse.json({ error: "invalid_request", message, details }, { status: 400 });
-}
-
-/** Map thrown errors to non-2xx JSON so withX402 does not settle (user is not charged). */
-export function failure(e: unknown) {
-  const err = e as Error;
-  if (err instanceof UrlError) return badRequest(err.message);
-  console.error(err);
-  return NextResponse.json(
-    { error: "upstream_failed", message: err?.message?.split("\n")[0] ?? "Unknown error", charged: false },
-    { status: 502 },
-  );
 }

@@ -54,7 +54,12 @@ export async function* readSse(body: ReadableStream<Uint8Array>) {
         if (line.startsWith("event:")) event = line.slice(6).trim();
         else if (line.startsWith("data:")) data += line.slice(5).trim();
       }
-      if (data) yield { event, data: JSON.parse(data) as unknown };
+      if (!data) continue;
+      let parsed: unknown = data;
+      try {
+        parsed = JSON.parse(data);
+      } catch {}
+      yield { event, data: parsed };
     }
   }
 }

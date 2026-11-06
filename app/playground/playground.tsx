@@ -2,7 +2,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useAccount, useReadContract, useSwitchChain, useWalletClient, useBalance } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { ENDPOINTS, PRICES } from "@/lib/pricing";
+import { ENDPOINTS, quote } from "@/lib/pricing";
 import { USDT, whitechainSepolia, explorerTx, formatUsdt } from "@/lib/chains";
 import { erc20Abi } from "@/lib/wagmi";
 import { createPaidFetch, readSettlement, saveRun, type PayEvent, type Settlement } from "@/lib/pay-client";
@@ -12,22 +12,34 @@ type Id = (typeof ENDPOINTS)[number]["id"];
 type Form = Record<string, string | boolean>;
 
 const DEFAULTS: Record<Id, Form> = {
-  search: { q: "x402 payment protocol", limit: "8" },
-  fetch: { urls: "https://en.wikipedia.org/wiki/HTTP_402", format: "markdown", render: false },
-  agent: { url: "https://news.ycombinator.com", goal: "Return the titles and URLs of the top 5 stories.", output_schema: "", max_steps: "12" },
-  "agent-sse": { url: "https://news.ycombinator.com", goal: "Return the titles and URLs of the top 5 stories.", output_schema: "", max_steps: "12" },
-  research: { query: "How does the x402 payment protocol work and who is adopting it?", depth: "quick", stream: true },
-  browser: { timeout_seconds: "300" },
+  search: { query: "x402 payment protocol", domain_type: "web", location: "", page: "0", purpose: "" },
+  fetch: { urls: "https://en.wikipedia.org/wiki/HTTP_402", format: "markdown", links: false, purpose: "" },
+  agent: { url: "https://news.ycombinator.com", goal: "Return the titles and URLs of the top 5 stories as JSON.", output_schema: "", max_steps: "30", browser_profile: "lite" },
+  "agent-sse": { url: "https://news.ycombinator.com", goal: "Return the titles and URLs of the top 5 stories as JSON.", output_schema: "", max_steps: "30", browser_profile: "lite" },
+  research: { query: "How does the x402 payment protocol work and who is adopting it?", mode: "deep", output_language: "", follow: true },
+  datasets: { prompt: "Specialty coffee shops in Oakland with their website and rating", target_rows: "10", follow: true },
+  browser: { url: "https://www.tinyfish.ai", timeout_seconds: "300", country_code: "" },
 };
 
-function buildRequest(id: Id, f: Form): { url: string; init: RequestInit } | { error: string } {
+const now = () => performance.now(); // called from event handlers only
+const newId = () => crypto.randomUUID();
+const opt = (v: string | boolean) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+
+function buildRequest(id: Id, f: Form): { url: string; init: RequestInit; body?: Record<string, unknown> } | { error: string } {
   const ep = ENDPOINTS.find((e) => e.id === id)!;
-  const json = (body: unknown) => ({ url: ep.path, init: { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } });
+  const json = (body: Record<string, unknown>) => ({
+    url: ep.path,
+    body,
+    init: { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+  });
   switch (id) {
-    case "search":
-      return { url: `${ep.path}?${new URLSearchParams({ q: String(f.q), limit: String(f.limit) })}`, init: { method: "GET" } };
+    case "search": {
+      const qs = new URLSearchParams();
+      for (const k of ["query", "domain_type", "location", "page", "purpose"]) if (opt(f[k])) qs.set(k, String(f[k]).trim());
+      return { url: `${ep.path}?${qs}`, init: { method: "GET" } };
+    }
     case "fetch":
-      return json({ urls: String(f.urls).split(/\s+/).filter(Boolean), format: f.format, render: !!f.render });
+      return json({ urls: String(f.urls).split(/\s+/).filter(Boolean), format: f.format, links: !!f.links, purpose: opt(f.purpose) });
     case "agent":
     case "agent-sse": {
       let output_schema;
@@ -38,14 +50,18 @@ function buildRequest(id: Id, f: Form): { url: string; init: RequestInit } | { e
           return { error: "output_schema is not valid JSON" };
         }
       }
-      return json({ url: f.url, goal: f.goal, output_schema, max_steps: Number(f.max_steps) });
+      return json({ url: f.url, goal: f.goal, browser_profile: f.browser_profile, output_schema, agent_config: { max_steps: Number(f.max_steps) } });
     }
-    case "research": {
-      const r = json({ query: f.query, depth: f.depth });
-      return f.stream ? { ...r, url: `${ep.path}?stream=1` } : r;
-    }
+    case "research":
+      return json({ query: f.query, mode: f.mode, output_language: opt(f.output_language) });
+    case "datasets":
+      return json({ prompt: f.prompt, target_rows: Number(f.target_rows) });
     case "browser":
-      return json({ timeout_seconds: Number(f.timeout_seconds) });
+      return json({
+        url: opt(f.url),
+        timeout_seconds: Number(f.timeout_seconds),
+        proxy_config: opt(f.country_code) ? { country_code: String(f.country_code).toUpperCase() } : undefined,
+      });
     default:
       return { error: "Unknown endpoint" };
   }
@@ -88,7 +104,6 @@ export function Playground() {
   const abortRef = useRef<AbortController | null>(null);
 
   const ep = ENDPOINTS.find((e) => e.id === id)!;
-  const price = PRICES[ep.product];
   const form = forms[id];
   const set = (k: string, v: string | boolean) => setForms((s) => ({ ...s, [id]: { ...s[id], [k]: v } }));
 
@@ -103,11 +118,12 @@ export function Playground() {
   const wbt = useBalance({ address, chainId: whitechainSepolia.id, query: { enabled: !!address } });
   const usdt = bal.data as bigint | undefined;
   const wrongChain = isConnected && chainId !== whitechainSepolia.id;
+  const req = useMemo(() => buildRequest(id, form), [id, form]);
+  const price = quote(ep.product, "error" in req ? undefined : req.body);
   const capBase = Math.round(Number(cap) * 10 ** USDT.decimals);
   const overCap = capBase < Number(price);
   const lowBalance = usdt !== undefined && usdt < BigInt(price);
 
-  const req = useMemo(() => buildRequest(id, form), [id, form]);
 
   async function run() {
     if (!wallet || "error" in req) return;
@@ -119,7 +135,7 @@ export function Playground() {
     const push = (e: PayEvent) => setLog((l) => [...l, describe(e)]);
     const abort = new AbortController();
     abortRef.current = abort;
-    const started = performance.now();
+    const started = now();
     let body: unknown = null;
     let status = 0;
     let s: Settlement | null = null;
@@ -149,13 +165,29 @@ export function Playground() {
         push({ kind: "settled", transaction: s.transaction, payer: s.payer, network: s.network });
         setSettle(s);
       }
+      // Research and Datasets run in the background; follow their free event streams.
+      const eventsUrl = (body as { events_url?: string } | null)?.events_url;
+      if (status < 400 && eventsUrl && form.follow) {
+        const evs: { event: string; data: unknown }[] = [];
+        const r = await fetch(eventsUrl, { signal: abort.signal });
+        if (r.ok && r.body)
+          for await (const ev of readSse(r.body)) {
+            const name = (ev.data as { event?: string })?.event ?? ev.event;
+            if (name === "heartbeat") continue;
+            evs.push({ event: name, data: ev.data });
+            setEvents([...evs]);
+            if (name === "final_result") setResult({ status, body: ev.data });
+          }
+        const rowsUrl = (body as { rows_url?: string }).rows_url;
+        if (rowsUrl) setResult({ status, body: await (await fetch(rowsUrl)).json() });
+      }
       saveRun({
-        id: crypto.randomUUID(),
-        at: Date.now(),
+        id: newId(),
+        at: Math.round(performance.timeOrigin + now()),
         endpoint: ep.path,
         amount: s?.transaction ? price : "0",
         status,
-        ms: Math.round(performance.now() - started),
+        ms: Math.round(now() - started),
         payer: s?.payer ?? address,
         tx: s?.transaction,
         input: req.init.body ? JSON.parse(String(req.init.body)) : Object.fromEntries(new URL(req.url, location.href).searchParams),
@@ -175,14 +207,14 @@ export function Playground() {
     <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
       {/* Left: request builder */}
       <section className="flex flex-col gap-4">
-        <div className="grid grid-cols-3 gap-1 rounded-xl border border-line bg-surface p-1" role="tablist">
+        <div className="grid grid-cols-3 gap-1 sm:grid-cols-4 rounded-xl border border-line bg-surface p-1" role="tablist">
           {ENDPOINTS.map((e) => (
             <button
               key={e.id}
               role="tab"
               aria-selected={id === e.id}
               onClick={() => setId(e.id as Id)}
-              className={`rounded-lg px-3 py-1.5 text-sm ${id === e.id ? "bg-accent text-accent-ink" : "text-muted hover:bg-surface-2 hover:text-ink"}`}
+              className={`whitespace-nowrap rounded-lg px-2 py-1.5 text-sm ${id === e.id ? "bg-accent text-accent-ink" : "text-muted hover:bg-surface-2 hover:text-ink"}`}
             >
               {e.title}
             </button>
@@ -315,7 +347,8 @@ export function Playground() {
 }
 
 function ResultView({ body }: { body: unknown }) {
-  const report = (body as { report?: string })?.report;
+  const b = body as { report?: string; event?: string; result?: unknown } | null;
+  const report = b?.report ?? (b?.event === "final_result" && typeof b.result === "string" ? b.result : undefined);
   const [raw, setRaw] = useState(!report);
   return (
     <div>
@@ -386,16 +419,22 @@ function Fields({ id, form, set }: { id: Id; form: Form; set: (k: string, v: str
     case "search":
       return (
         <>
-          <Field label="Query">{text("q")}</Field>
-          <Field label="Limit">{text("limit", { type: "number", min: 1, max: 20 })}</Field>
+          <Field label="Query">{text("query")}</Field>
+          <Field label="Domain type">{select("domain_type", ["web", "news", "research_paper"])}</Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Location (country)">{text("location", { placeholder: "US", maxLength: 2 })}</Field>
+            <Field label="Page">{text("page", { type: "number", min: 0, max: 10 })}</Field>
+          </div>
+          <Field label="Purpose (optional)">{text("purpose", { placeholder: "Why you are searching" })}</Field>
         </>
       );
     case "fetch":
       return (
         <>
           <Field label="URLs" hint="One per line, up to 10">{area("urls", 3)}</Field>
-          <Field label="Format">{select("format", ["markdown", "text", "html"])}</Field>
-          {check("render", "Render JavaScript in a real browser")}
+          <Field label="Format">{select("format", ["markdown", "html", "json"])}</Field>
+          <Field label="Purpose (optional)">{text("purpose")}</Field>
+          {check("links", "Include outbound links")}
         </>
       );
     case "agent":
@@ -404,19 +443,41 @@ function Fields({ id, form, set }: { id: Id; form: Form; set: (k: string, v: str
         <>
           <Field label="Start URL">{text("url")}</Field>
           <Field label="Goal">{area("goal", 3)}</Field>
-          <Field label="Output schema (optional JSON Schema)">{area("output_schema", 3, '{"type":"array","items":{"type":"object"}}')}</Field>
-          <Field label="Max steps">{text("max_steps", { type: "number", min: 1, max: 40 })}</Field>
+          <Field label="Output schema (optional JSON Schema)">{area("output_schema", 3, '{"type":"object","properties":{...}}')}</Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Max steps">{text("max_steps", { type: "number", min: 1, max: 500 })}</Field>
+            <Field label="Browser">{select("browser_profile", ["lite", "stealth"])}</Field>
+          </div>
         </>
       );
     case "research":
       return (
         <>
           <Field label="Question">{area("query", 3)}</Field>
-          <Field label="Depth">{select("depth", ["quick", "standard", "deep"])}</Field>
-          {check("stream", "Stream progress (SSE)")}
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Mode" hint="max costs more">{select("mode", ["deep", "max"])}</Field>
+            <Field label="Report language">{text("output_language", { placeholder: "en" })}</Field>
+          </div>
+          {check("follow", "Follow progress after paying (5-45 min)")}
+        </>
+      );
+    case "datasets":
+      return (
+        <>
+          <Field label="Describe the dataset">{area("prompt", 3)}</Field>
+          <Field label="Target rows" hint="Priced per row, 1-250">{text("target_rows", { type: "number", min: 1, max: 250 })}</Field>
+          {check("follow", "Follow the fill, then load rows")}
         </>
       );
     case "browser":
-      return <Field label="Session timeout (seconds)">{text("timeout_seconds", { type: "number", min: 30, max: 1800 })}</Field>;
+      return (
+        <>
+          <Field label="Start URL (optional)">{text("url")}</Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Idle timeout (s)">{text("timeout_seconds", { type: "number", min: 5, max: 3600 })}</Field>
+            <Field label="Proxy country">{text("country_code", { placeholder: "US", maxLength: 2 })}</Field>
+          </div>
+        </>
+      );
   }
 }

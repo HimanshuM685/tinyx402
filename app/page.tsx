@@ -19,7 +19,7 @@ const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
   },
 });
 
-const res = await paidFetch("https://tinyx402.dev/api/v1/search?q=x402");
+const res = await paidFetch("https://your-domain.com/api/v1/search?query=x402");
 console.log(await res.json());`;
 
 const FLOW = [
@@ -43,8 +43,8 @@ export default function Home() {
             <span className="text-muted">Paid per call.</span>
           </h1>
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted">
-            Search, fetch, browser agents and deep research for your scripts and AI agents. Every request settles in USDT on
-            Whitechain through x402. No API keys, no subscriptions, no invoices.
+            TinyFish search, fetch, browser agents, research and datasets for your scripts and AI agents. Every request
+            settles in USDT on Whitechain through x402. No API keys, no subscriptions, no invoices.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/playground" className="rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink hover:opacity-90">
@@ -101,7 +101,10 @@ export default function Home() {
                     </td>
                     <td className="py-3.5 pr-4 text-muted">{e.description}</td>
                     <td className="py-3.5 pr-4 text-right font-mono text-muted">{PRICES[e.product]}</td>
-                    <td className="py-3.5 text-right font-mono">{formatUsdt(PRICES[e.product])}</td>
+                    <td className="py-3.5 text-right font-mono">
+                      {formatUsdt(PRICES[e.product])}
+                      {e.priceNote && <span className="block text-[11px] text-muted">{e.priceNote}</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -2,40 +2,48 @@ export const metadata = { title: "Browser session API" };
 
 # Browser session
 
-Creates a remote Chromium session that you drive yourself over the Chrome DevTools Protocol, with Playwright, Puppeteer or raw CDP.
+A remote browser session you drive yourself over the Chrome DevTools Protocol, with Playwright, Puppeteer or raw CDP.
 
 <Endpoint method="POST" path="/api/v1/browser" product="browser" />
 
-## Body
+## Body (all optional)
 
-| Field | Type | Default | |
-| --- | --- | --- | --- |
-| `timeout_seconds` | integer | `300` | 30–1800. The session closes after this time. |
+| Field | Type | |
+| --- | --- | --- |
+| `url` | string | Navigate here on startup. |
+| `timeout_seconds` | integer | Inactivity timeout, 5–3600. |
+| `proxy_config` | object | `{ country_code: "DE" }` for another exit country, `{ type: "custom", url, username, password }` for your own proxy, or `{ enabled: false }` for direct egress. The default is a US residential proxy. |
+
+Session creation takes 10–30 seconds, so give your HTTP client a timeout of at least 60 seconds.
 
 ## Response
 
 ```json
 {
-  "session_id": "5b1c…",
-  "cdp_url": "wss://connect.browserbase.com?signingKey=…",
-  "live_view_url": "https://www.browserbase.com/devtools-fullscreen/inspector.html?wss=…",
-  "expires_at": "2026-11-06T12:05:00Z"
+  "session_id": "br-a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "cdp_url": "wss://example.tinyfish.io/cdp",
+  "base_url": "https://example.tinyfish.io",
+  "end_url": "/api/v1/browser/br-a1b2c3d4-…"
 }
 ```
-
-`cdp_url` is scoped to this one session through a signing key. It does not expose the operator's provider credentials.
 
 ## Connect
 
 ```ts
 import { chromium } from "playwright";
 
-const { cdp_url } = await (await paidFetch(".../api/v1/browser", { method: "POST", body: "{}", headers: { "Content-Type": "application/json" } })).json();
-const browser = await chromium.connectOverCDP(cdp_url);
+const s = await (await paidFetch("https://your-domain.com/api/v1/browser", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ url: "https://www.tinyfish.ai" }),
+})).json();
+
+const browser = await chromium.connectOverCDP(s.cdp_url); // use cdp_url, not base_url
 const page = browser.contexts()[0].pages()[0];
-await page.goto("https://example.com");
+await page.waitForLoadState("domcontentloaded");
+console.log(await page.title());
+
+await fetch(`https://your-domain.com${s.end_url}`, { method: "DELETE" }); // free; otherwise it ends on idle
 ```
 
-<Callout type="warn">
-This endpoint needs `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID` on the server. Without them it returns `501 not_configured`, and you are not charged.
-</Callout>
+Sessions are isolated and don't keep cookies or storage between sessions.

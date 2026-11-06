@@ -28,7 +28,7 @@ client = x402ClientSync.from_config(
 )
 session = x402_requests(client)
 
-res = session.get(f"{BASE}/api/v1/search", params={"q": sys.argv[1] if len(sys.argv) > 1 else "x402"})
+res = session.get(f"{BASE}/api/v1/search", params={"query": sys.argv[1] if len(sys.argv) > 1 else "x402"})
 print(res.status_code, res.json())
 if receipt := res.headers.get("PAYMENT-RESPONSE"):
     print("settlement:", decode_payment_response_header(receipt))

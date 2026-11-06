@@ -1,0 +1,60 @@
+export const metadata = { title: "Datasets API" };
+
+# Datasets
+
+Describe a dataset in one sentence. TinySet designs the columns, finds matching entities on the web, and fills one row per entity with values taken from real pages.
+
+<Endpoint method="POST" path="/api/v1/datasets" product="datasets" />
+
+**Priced per target row**: `target_rows × 20000` base units (0.02 USDT per row). 10 rows cost 0.2 USDT and 250 rows cost 5 USDT. The `402` response quotes the exact amount. Raise your `maxAmountPerPayment` to match.
+
+## Body
+
+| Field | Type | |
+| --- | --- | --- |
+| `prompt` | string | What the dataset should contain. Up to 15,000 chars. |
+| `spec` | object | Or send an explicit schema: `{ name, description, columns[], keep_when? }`. |
+| `target_rows` | integer | 1–250, default 10. |
+
+Send `prompt` or `spec`. Planning takes up to a minute, then the paid call returns while the fill keeps running in the background (usually 5–20 minutes). **Payment settles when the dataset is created.**
+
+## Example
+
+```ts
+const ds = await (await paidFetch("https://your-domain.com/api/v1/datasets", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ prompt: "Specialty coffee shops in Oakland with their website and rating", target_rows: 25 }),
+})).json();
+```
+
+## Response
+
+```json
+{
+  "id": "1b6c…",
+  "name": "Oakland Specialty Coffee Shops",
+  "spec": {
+    "columns": [
+      { "name": "shop_name", "label": "Shop Name", "type": "string", "is_primary_key": true },
+      { "name": "website", "label": "Website", "type": "url", "is_primary_key": false },
+      { "name": "rating", "label": "Rating", "type": "number", "is_primary_key": false }
+    ]
+  },
+  "status": "populating",
+  "target_rows": 25,
+  "row_count": 0,
+  "run": { "id": "7f2a…", "status": "queued" },
+  "poll_url": "/api/v1/datasets/1b6c…",
+  "rows_url": "/api/v1/datasets/1b6c…/rows",
+  "events_url": "/api/v1/datasets/1b6c…/events?run=7f2a…"
+}
+```
+
+## Follow the fill (free)
+
+| Endpoint | |
+| --- | --- |
+| `GET /api/v1/datasets/{id}` | `status`: `populating`, `ready`, `empty`, `failed` or `cancelled` |
+| `GET /api/v1/datasets/{id}/events?run={runId}` | SSE: `status`, `row` (`{ row_id, data }`), `log`, then `done` |
+| `GET /api/v1/datasets/{id}/rows?after={cursor}` | One page of rows, with cells keyed by column name. Pass `next_cursor` as `after`. |

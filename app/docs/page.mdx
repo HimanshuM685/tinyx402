@@ -2,7 +2,7 @@ export const metadata = { title: "Quick start" };
 
 # Quick start
 
-tinyx402 gives scripts and AI agents web capabilities: search, page extraction, goal-driven browser automation and multi-source research. There are no API keys. Each request is paid with USDT on Whitechain through the [x402 protocol](/docs/how-x402-works).
+tinyx402 gives scripts and AI agents [TinyFish](https://tinyfish.ai) web capabilities: search, page extraction, goal-driven browser automation, multi-source research, web-filled datasets and remote browsers. There are no API keys. Each request is paid with USDT on Whitechain through the [x402 protocol](/docs/how-x402-works).
 
 ## 1. Get a testnet wallet
 
@@ -35,7 +35,7 @@ const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
   },
 });
 
-const res = await paidFetch("https://your-domain.com/api/v1/search?q=example");
+const res = await paidFetch("https://your-domain.com/api/v1/search?query=example");
 console.log(await res.json());
 ```
 
@@ -48,11 +48,12 @@ console.log(await res.json());
 | `GET /api/v1/search` | <Price product="search" /> |
 | `POST /api/v1/fetch` | <Price product="fetch" /> |
 | `POST /api/v1/agent/run` · `/run-sse` | <Price product="agent" /> |
-| `POST /api/v1/research` | <Price product="research" /> |
+| `POST /api/v1/research` | <Price product="research" /> (deep), 0.5 USDT (max) |
+| `POST /api/v1/datasets` | <Price product="datasets" /> per target row |
 | `POST /api/v1/browser` | <Price product="browser" /> |
 
 <Callout>
-You are only charged when a request succeeds. Invalid input (`400`), upstream failures (`502`) and anything else that returns a status of 400 or higher are never settled. [Error codes →](/docs/errors)
+You are only charged when a request succeeds. Invalid input (`400`), failed agent runs and upstream failures (`502`/`503`) and anything else that returns a status of 400 or higher are never settled. [Error codes →](/docs/errors)
 </Callout>
 
 ## Next

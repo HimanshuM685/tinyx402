@@ -24,6 +24,7 @@ export const DOCS_NAV: { title: string; items: { href: string; label: string }[]
       { href: "/docs/api/agent", label: "Agent run" },
       { href: "/docs/api/agent-sse", label: "Agent run (SSE)" },
       { href: "/docs/api/research", label: "Research" },
+      { href: "/docs/api/datasets", label: "Datasets" },
       { href: "/docs/api/browser", label: "Browser session" },
       { href: "/docs/errors", label: "Error codes" },
     ],

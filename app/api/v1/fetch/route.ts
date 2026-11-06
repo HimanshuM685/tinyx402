@@ -1,27 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { paidRoute, badRequest, failure } from "@/lib/x402";
+import { paidRoute, badRequest } from "@/lib/x402";
 import { FetchBody, issues } from "@/lib/schemas";
-import { fetchRendered, fetchStatic } from "@/lib/extract";
+import { TF, tfJson, upstreamFailure } from "@/lib/tinyfish";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
-export const POST = paidRoute("fetch", "Clean content extraction from URL(s)", async (req: NextRequest) => {
+type FetchResult = { results: unknown[]; errors: unknown[] };
+
+export const POST = paidRoute("fetch", "Clean content extraction from up to 10 URLs", async (req: NextRequest) => {
   const p = FetchBody.safeParse(await req.json().catch(() => null));
   if (!p.success) return badRequest("Invalid body", issues(p.error));
-  const { urls, format, render, links } = p.data;
   try {
-    const t = Date.now();
-    const settled = await Promise.allSettled(
-      urls.map((u) => (render ? fetchRendered(u, format, links) : fetchStatic(u, format, links))),
-    );
-    const results = settled.map((s, i) =>
-      s.status === "fulfilled" ? { ok: true, ...s.value } : { ok: false, url: urls[i], error: (s.reason as Error).message },
-    );
-    // Charge only if at least one URL succeeded.
-    if (!results.some((r) => r.ok)) return NextResponse.json({ error: "all_failed", results, charged: false }, { status: 502 });
-    return NextResponse.json({ results, took_ms: Date.now() - t });
+    const out = await tfJson<FetchResult>(TF.fetch, { method: "POST", body: JSON.stringify(p.data), timeoutMs: 280_000 });
+    // Per-URL failures come back in errors[]; charge only if at least one URL succeeded.
+    if (!out.results?.length) return NextResponse.json({ ...out, error: "all_failed", charged: false }, { status: 502 });
+    return NextResponse.json(out);
   } catch (e) {
-    return failure(e);
+    return upstreamFailure(e);
   }
 });

@@ -7,14 +7,15 @@ Errors are JSON: `{ "error": "<code>", "message": "…" }`. **Only 2xx responses
 | Status | `error` | Charged | Meaning / what to do |
 | --- | --- | --- | --- |
 | `400` | `invalid_request` | No | Body or query failed validation. `details` lists each issue. Fix and retry. |
-| `400` | `invalid_request` | No | URL is not public http(s). Private, loopback and metadata hosts are blocked. |
+| `400`/`404`/`422` | `invalid_request` | No | TinyFish rejected the input. Details are in `upstream`. |
 | `402` | `Payment required` | No | No payment attached. Read `PAYMENT-REQUIRED`, sign, retry. x402 clients do this automatically. |
 | `402` | `invalid_exact_evm_insufficient_balance` | No | Your USDT balance is below the price. |
 | `402` | `invalid_exact_evm_*` | No | Bad signature, wrong domain, expired or reused authorization. Check `extra` and chain ID `1874`. |
 | `429` | `rate_limited` | No | More than `RATE_LIMIT_PER_MIN` requests per IP. Honor `Retry-After`. |
-| `501` | `not_configured` | No | The feature (such as browser sessions) isn't enabled on this deployment. |
-| `502` | `upstream_failed` | No | Search provider, target site, browser or model failed. Safe to retry once. |
-| `502` | `all_failed` | No | Fetch: every URL failed. Per-URL errors are in `results`. |
+| `502` | `upstream_failed` | No | TinyFish failed, or an agent run ended `FAILED` (see `error.category`). Safe to retry once. |
+| `502` | `all_failed` | No | Fetch: every URL failed. Per-URL errors are in `errors`. |
+| `503` | `service_unavailable` | No | Upstream capacity is temporarily unavailable on this deployment. Retry later. |
+| `504` | `upstream_timeout` | No | Upstream didn't answer in time. |
 | `5xx` | settlement error | No | The facilitator couldn't settle. The response is withheld and nothing is transferred. |
 
 ## Client-side errors
