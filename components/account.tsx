@@ -10,11 +10,15 @@ import { erc20Abi } from "@/lib/wagmi";
 import { CopyButton } from "./copy-button";
 
 export type PlatformWallet = { user: { name: string; email: string; image?: string | null }; address: `0x${string}`; maxPerPayment: string };
-type WalletState = { wallet: PlatformWallet | null; authEnabled: boolean };
+type WalletState = { wallet: PlatformWallet | null; authEnabled: boolean; error?: string };
 
 /**
  * Google-login platform wallet. The first fetch after sign-in creates the wallet server-side
  * (saved in the `wallets` table), so returning from Google is all it takes.
+ *
+ * Only 401 means signed out. Anything else that failed has to surface as `error`: a signed-in
+ * user whose wallet errored used to render as "Get started", which looks exactly like the
+ * sign-in silently doing nothing.
  */
 export function usePlatformWallet() {
   const q = useQuery({
@@ -22,22 +26,27 @@ export function usePlatformWallet() {
     queryFn: async (): Promise<WalletState> => {
       const r = await fetch("/api/wallet");
       if (r.ok) return { wallet: await r.json(), authEnabled: true };
-      return { wallet: null, authEnabled: r.status !== 503 };
+      if (r.status === 401) return { wallet: null, authEnabled: true }; // signed out
+      if (r.status === 503) return { wallet: null, authEnabled: false }; // Google login not configured
+      const { message } = await r.json().catch(() => ({ message: "" }));
+      return { wallet: null, authEnabled: true, error: message || `Wallet unavailable (HTTP ${r.status})` };
     },
     staleTime: Infinity, // changes only on sign-in/out, which update the cache directly
     refetchOnWindowFocus: false,
   });
-  return { ...q, data: q.data?.wallet ?? null, authEnabled: q.data?.authEnabled ?? false };
+  return { ...q, data: q.data?.wallet ?? null, authEnabled: q.data?.authEnabled ?? false, error: q.data?.error };
 }
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
 /** Header entry point: "Get started" → chooser; then a Google account chip or the wallet button. */
 export function AccountButton() {
-  const { data: platform, isLoading } = usePlatformWallet();
+  const { data: platform, isLoading, error } = usePlatformWallet();
   const { isConnected } = useAccount();
   if (isLoading) return <span className="h-9 w-28 animate-pulse rounded-lg bg-surface-2" aria-hidden />;
   if (platform) return <AccountChip w={platform} />;
+  // Signed in but the wallet failed. Say so — offering "Get started" here reads as a broken login.
+  if (error) return <span role="alert" title={error} className="max-w-[16rem] truncate rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">{error}</span>;
   if (isConnected) return <ConnectButton chainStatus="icon" showBalance={false} accountStatus={{ smallScreen: "avatar", largeScreen: "address" }} />;
   return <GetStarted />;
 }
