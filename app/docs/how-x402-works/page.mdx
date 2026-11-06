@@ -56,6 +56,28 @@ The final response carries `PAYMENT-RESPONSE`:
 { "success": true, "transaction": "0x8c1f…", "network": "eip155:1874", "payer": "0xYou…" }
 ```
 
+## Where it lives in the code
+
+tinyx402 uses the official x402 SDKs (`@x402/next`, `@x402/core`, `@x402/evm`, `@x402/fetch`) and doesn't call the token contract itself.
+
+| Step | File | What |
+| --- | --- | --- |
+| Price and `PAYMENT-REQUIRED` | `lib/x402.ts` | `paid()` builds the `exact` route config (asset, amount, payTo, EIP-712 `extra`). |
+| Middleware | `lib/x402.ts` | `paidRoute()` wraps every handler in `withX402` from `@x402/next`. |
+| Facilitator | `lib/x402.ts` | `HTTPFacilitatorClient({ url: FACILITATOR_URL })`, registered on `x402ResourceServer` with `ExactEvmScheme`. |
+| Verify, then settle | `withX402` / `paidStream()` | `/verify` before the handler runs, `/settle` only for responses under 400. |
+| Browser client | `lib/pay-client.ts` | `createPaidFetch()`: `@x402/fetch` plus the wallet's `signTypedData`. |
+| Script client | `scripts/pay.ts` | `@x402/fetch` with a private-key signer. |
+
+The middleware is per route (`withX402`) rather than a `proxy.ts` `paymentProxy`. `paymentProxy` would also settle failed responses, and it can't price from the request body or stream.
+
+Probe it yourself:
+
+```bash
+curl -i "$SITE/api/v1/search?query=x402"        # 402 + PAYMENT-REQUIRED
+curl https://whitechain.007575.xyz/supported     # facilitator: exact on eip155:1874
+```
+
 ## Streaming: Agent (SSE)
 
 `/api/v1/agent/run-sse` verifies the payment before the stream opens and settles only when the run reports `COMPLETED`. Headers are already sent by then, so the receipt arrives as the last event:

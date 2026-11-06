@@ -92,6 +92,8 @@ PRIVATE_KEY=0x… python examples/python/pay.py "x402"    # pip install "x402[re
 
 ## How payment is wired
 
+Payments are standard x402 v2 with a facilitator, not direct transfers. The server never sends a transaction and the client only signs. `withX402` (the x402 middleware) gates each route, and the facilitator at `FACILITATOR_URL` verifies and settles. For a step-by-step map, see [How x402 payments work: where it lives in the code](/docs/how-x402-works#where-it-lives-in-the-code).
+
 - `lib/x402.ts` registers `ExactEvmScheme` for `eip155:1874` on an `x402ResourceServer` backed by `HTTPFacilitatorClient`. `paid(product)` builds each route config with the explicit price shape:
 
   ```ts

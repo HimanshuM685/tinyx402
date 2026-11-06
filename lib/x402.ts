@@ -1,4 +1,15 @@
 import "server-only";
+/**
+ * x402 v2 payment middleware for every /api/v1 route. Nothing here moves money directly:
+ *   1. unpaid request      -> withX402 replies 402 + PAYMENT-REQUIRED (built by paid())
+ *   2. client signs EIP-3009 TransferWithAuthorization off-chain, retries with PAYMENT-SIGNATURE
+ *   3. facilitator /verify -> HTTPFacilitatorClient below (FACILITATOR_URL)
+ *   4. handler runs        -> TinyFish call
+ *   5. facilitator /settle -> only when the handler returned status < 400; facilitator pays gas
+ *   6. receipt             -> PAYMENT-RESPONSE header (or final `payment` SSE event in paidStream)
+ * Per-route withX402 rather than a proxy.ts paymentProxy: paymentProxy settles failed responses
+ * too, and can't price from the request body (research/datasets) or stream (agent SSE).
+ */
 import { NextRequest, NextResponse } from "next/server";
 import { withX402, NextAdapter, x402ResourceServer } from "@x402/next";
 import { HTTPFacilitatorClient, x402HTTPResourceServer, type RouteConfig } from "@x402/core/server";

@@ -95,6 +95,24 @@ async function main() {
   assert.ok(!("error" in d1));
   assert.equal("prompt" in d1.body || "follow" in d1.body, false); // spec wins, local fields never sent
 
+  // Live x402 check (opt-in): X402_CHECK_URL=http://localhost:3000 pnpm selftest
+  const live = process.env.X402_CHECK_URL;
+  if (live) {
+    const { facilitator } = await import("../lib/x402");
+    const { decodePaymentRequiredHeader } = await import("@x402/core/http");
+    const sup = await facilitator.getSupported();
+    assert.ok(sup.kinds.some((k) => k.scheme === "exact" && k.network === "eip155:1874"), "facilitator lacks exact/eip155:1874");
+    const r = await fetch(`${live}/api/v1/search?query=x402`);
+    assert.equal(r.status, 402);
+    const req = decodePaymentRequiredHeader(r.headers.get("payment-required") ?? "");
+    assert.equal(req.x402Version, 2);
+    const acc = req.accepts[0];
+    assert.equal(acc.network, "eip155:1874");
+    assert.equal(acc.asset.toLowerCase(), "0xcedfb56113143d55b2358b8cfbb0deb5ad2f55a7");
+    assert.match(acc.payTo, /^0x[0-9a-fA-F]{40}$/);
+    console.log(`live x402 ok: facilitator + 402 from ${live} (payTo ${acc.payTo})`);
+  }
+
   console.log("selftest ok");
 }
 
