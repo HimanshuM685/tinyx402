@@ -139,6 +139,16 @@ async function main() {
   assert.ok("error" in w.checkAuthorization({ ...base, validBefore: "99999999999" }, acct.address, shop)); // too long-lived
   assert.ok("error" in w.checkAuthorization({ ...base, nonce: "0x12" }, acct.address, shop));
 
+  // Proxy matcher: every page runs the OAuth verifier exchange, /api/* stays out of it.
+  const { config: proxy } = await import("../proxy");
+  const matched = (p: string) => new RegExp(`^${proxy.matcher[0]}$`).test(p);
+  for (const p of ["/", "/playground", "/docs", "/docs/api/search", "/dashboard", "/llms.txt", "/apikeys"]) {
+    assert.ok(matched(p), `${p} skips the proxy, so Google sign-in from it would not set a session`);
+  }
+  for (const p of ["/api/v1/search", "/api/wallet", "/_next/static/chunk.js"]) {
+    assert.ok(!matched(p), `${p} should not pay for a session round-trip`);
+  }
+
   // Live x402 check (opt-in): X402_CHECK_URL=http://localhost:3000 pnpm selftest
   const live = process.env.X402_CHECK_URL;
   if (live) {

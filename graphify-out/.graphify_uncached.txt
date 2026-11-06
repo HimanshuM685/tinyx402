@@ -1,0 +1,15 @@
+/Users/fusion/Code/GitRepos/tinyx402/README.md
+/Users/fusion/Code/GitRepos/tinyx402/app/docs/api/agent-sse/page.mdx
+/Users/fusion/Code/GitRepos/tinyx402/app/docs/api/agent/page.mdx
+/Users/fusion/Code/GitRepos/tinyx402/app/docs/api/browser/page.mdx
+/Users/fusion/Code/GitRepos/tinyx402/app/docs/api/datasets/page.mdx
+/Users/fusion/Code/GitRepos/tinyx402/app/docs/api/fetch/page.mdx
+/Users/fusion/Code/GitRepos/tinyx402/app/docs/api/research/page.mdx
+/Users/fusion/Code/GitRepos/tinyx402/app/docs/api/search/page.mdx
+/Users/fusion/Code/GitRepos/tinyx402/app/docs/authentication/page.mdx
+/Users/fusion/Code/GitRepos/tinyx402/app/docs/direct-api/page.mdx
+/Users/fusion/Code/GitRepos/tinyx402/app/docs/errors/page.mdx
+/Users/fusion/Code/GitRepos/tinyx402/app/docs/for-coding-agents/page.mdx
+/Users/fusion/Code/GitRepos/tinyx402/app/docs/how-x402-works/page.mdx
+/Users/fusion/Code/GitRepos/tinyx402/app/docs/page.mdx
+/Users/fusion/Code/GitRepos/tinyx402/app/docs/web-app/page.mdx
