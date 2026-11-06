@@ -102,6 +102,17 @@ async function main() {
   assert.equal(await why(402, null), "operator_out_of_credits");
   assert.equal(await why(503, null), "upstream_busy");
 
+  // Bazaar discovery docs for every endpoint pass the official validator.
+  const { discovery } = await import("../lib/x402");
+  const { validateDiscoveryExtension } = await import("@x402/extensions/bazaar");
+  const { ENDPOINTS } = await import("../lib/pricing");
+  for (const e of ENDPOINTS) {
+    const ext = structuredClone(Object.values(discovery(e.id as Parameters<typeof discovery>[0]))[0]);
+    (ext.info.input as { method?: string }).method = e.method; // what bazaarResourceServerExtension adds per request
+    const v = validateDiscoveryExtension(ext);
+    assert.ok(v.valid, `bazaar ${e.id}: ${JSON.stringify(v.errors)}`);
+  }
+
   // Live x402 check (opt-in): X402_CHECK_URL=http://localhost:3000 pnpm selftest
   const live = process.env.X402_CHECK_URL;
   if (live) {
@@ -117,6 +128,8 @@ async function main() {
     assert.equal(acc.network, "eip155:1874");
     assert.equal(acc.asset.toLowerCase(), "0xcedfb56113143d55b2358b8cfbb0deb5ad2f55a7");
     assert.match(acc.payTo, /^0x[0-9a-fA-F]{40}$/);
+    const bz = (req.extensions?.bazaar ?? {}) as { info?: { input?: { method?: string; queryParams?: unknown } } };
+    assert.equal(bz.info?.input?.method, "GET", "402 lacks enriched bazaar extension");
     console.log(`live x402 ok: facilitator + 402 from ${live} (payTo ${acc.payTo})`);
   }
 

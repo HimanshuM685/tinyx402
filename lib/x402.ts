@@ -15,14 +15,16 @@ import { withX402, NextAdapter, x402ResourceServer } from "@x402/next";
 import { HTTPFacilitatorClient, x402HTTPResourceServer, type RouteConfig } from "@x402/core/server";
 import { decodePaymentResponseHeader } from "@x402/core/http";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
+import { bazaarResourceServerExtension, declareDiscoveryExtension } from "@x402/extensions/bazaar";
+import { z } from "zod";
 import { NETWORK, USDT, FACILITATOR_URL } from "./chains";
 import { PRICES, quote, type Product } from "./pricing";
 import { rateLimit } from "./ratelimit";
 import { recordRun } from "./db";
 import { sseResponse, type Emit } from "./sse";
-import { issues } from "./schemas";
+import { issues, SearchQuery, FetchBody, AgentBody, ResearchBody, DatasetBody, BrowserBody } from "./schemas";
+import { DEFAULTS, buildRequest, type Id } from "./playground";
 import { upstreamFailure, UpstreamError } from "./tinyfish";
-import type { z } from "zod";
 
 const network = (process.env.X402_NETWORK || NETWORK) as `${string}:${string}`;
 const payTo = process.env.PAY_TO_ADDRESS || "";
@@ -32,12 +34,44 @@ export const facilitator = new HTTPFacilitatorClient({
   url: process.env.FACILITATOR_URL || FACILITATOR_URL,
 });
 
-export const server = new x402ResourceServer(facilitator).register(network, new ExactEvmScheme());
+export const server = new x402ResourceServer(facilitator)
+  .register(network, new ExactEvmScheme())
+  .registerExtension(bazaarResourceServerExtension); // Bazaar discovery: method + route enrichment
+
+const SCHEMAS: Record<Id, z.ZodType> = {
+  search: SearchQuery, fetch: FetchBody, agent: AgentBody, "agent-sse": AgentBody, research: ResearchBody, datasets: DatasetBody, browser: BrowserBody,
+};
+const OUTPUTS: Record<Id, unknown> = {
+  search: { results: [{ title: "x402", url: "https://www.x402.org", snippet: "…" }] },
+  fetch: { results: [{ url: "https://www.tinyfish.ai/", text: "# TinyFish …" }] },
+  agent: { run_id: "run_…", status: "COMPLETED", result: { stories: [{ title: "…", url: "…" }] } },
+  "agent-sse": { events: ["started", "progress", "complete {result}", "payment {transaction}", "done"] },
+  research: { id: "res_…", status: "running", events: "/api/v1/research/res_…/events (free)" },
+  datasets: { id: "ds_…", status: "running", rows: "/api/v1/datasets/ds_…/rows (free)" },
+  browser: { session_id: "…", cdp_url: "wss://…", base_url: "https://…" },
+};
+const TAGS: Record<Id, string[]> = {
+  search: ["search", "web"], fetch: ["scrape", "web"], agent: ["agent", "browser"], "agent-sse": ["agent", "browser", "sse"],
+  research: ["research", "web"], datasets: ["data", "web"], browser: ["browser", "cdp"],
+};
+
+/** Bazaar docs for an endpoint: input example from the playground defaults, schema from zod. */
+export function discovery(id: Id) {
+  const built = buildRequest(id, DEFAULTS[id]);
+  if ("error" in built) throw new Error(`playground defaults for ${id}: ${built.error}`);
+  const inputSchema = z.toJSONSchema(SCHEMAS[id], { io: "input" }) as Record<string, unknown>;
+  delete inputSchema.$schema;
+  const output = { example: OUTPUTS[id] };
+  return id === "search"
+    ? declareDiscoveryExtension({ input: Object.fromEntries(new URL(built.url, "http://x").searchParams), inputSchema, output })
+    : declareDiscoveryExtension({ bodyType: "json", input: built.body, inputSchema, output });
+}
 
 const DYNAMIC: Product[] = ["research", "datasets"];
 
 /** Route config for a product, using the explicit asset/amount/extra price shape. */
-export function paid(product: Product, description: string): RouteConfig {
+export function paid(product: Product, description: string, stream = false): RouteConfig {
+  const id: Id = stream ? "agent-sse" : product;
   if (!/^0x[0-9a-fA-F]{40}$/.test(payTo)) throw new Error("PAY_TO_ADDRESS is not set to a valid EVM address");
   return {
     accepts: {
@@ -59,8 +93,10 @@ export function paid(product: Product, description: string): RouteConfig {
       maxTimeoutSeconds: 300,
     },
     description,
-    mimeType: "application/json",
+    mimeType: stream ? "text/event-stream" : "application/json",
     serviceName: "tinyx402",
+    tags: TAGS[id],
+    extensions: discovery(id),
   };
 }
 
@@ -127,7 +163,7 @@ export function paidStream<T>(
   return async (req) => {
     const limited = rateLimit(req);
     if (limited) return limited;
-    http ??= new x402HTTPResourceServer(server, paid(product, description));
+    http ??= new x402HTTPResourceServer(server, paid(product, description, true));
     ready ??= http.initialize().catch((e) => {
       ready = null;
       throw e;

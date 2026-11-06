@@ -134,8 +134,9 @@ TinyFish bills the operator's wallet. Search (12,000/day) and Fetch (1,000 URLs/
 | --- | --- |
 | `pnpm dev` / `build` / `start` | Next.js |
 | `pnpm lint` / `typecheck` | |
-| `pnpm selftest` | asserts on prices and dynamic quotes, field stripping, SSE codec, agent relay |
+| `pnpm selftest` | asserts on prices and dynamic quotes, field stripping, SSE codec, agent relay, Bazaar docs. `X402_CHECK_URL=…` adds a live 402 and facilitator check |
 | `pnpm pay <endpoint> …` | paid CLI client |
+| `pnpm bazaar:register` | list all endpoints in the facilitator's Bazaar (run after each deploy; needs public `NEXT_PUBLIC_SITE_URL` and `PAY_TO_ADDRESS`) |
 | `pnpm db:push` | create the `runs` table |
 
 ## License

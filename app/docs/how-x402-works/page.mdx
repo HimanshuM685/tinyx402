@@ -66,10 +66,23 @@ tinyx402 uses the official x402 SDKs (`@x402/next`, `@x402/core`, `@x402/evm`, `
 | Middleware | `lib/x402.ts` | `paidRoute()` wraps every handler in `withX402` from `@x402/next`. |
 | Facilitator | `lib/x402.ts` | `HTTPFacilitatorClient({ url: FACILITATOR_URL })`, registered on `x402ResourceServer` with `ExactEvmScheme`. |
 | Verify, then settle | `withX402` / `paidStream()` | `/verify` before the handler runs, `/settle` only for responses under 400. |
+| Bazaar listing | `lib/x402.ts` | `bazaarResourceServerExtension`, plus `discovery()` on each route: input example, zod JSON Schema, output example, tags. |
 | Browser client | `lib/pay-client.ts` | `createPaidFetch()`: `@x402/fetch` plus the wallet's `signTypedData`. |
 | Script client | `scripts/pay.ts` | `@x402/fetch` with a private-key signer. |
 
 The middleware is per route (`withX402`) rather than a `proxy.ts` `paymentProxy`. `paymentProxy` would also settle failed responses, and it can't price from the request body or stream.
+
+### Discovery (Bazaar)
+
+Every 402 carries the standard `bazaar` discovery extension, so agents can find tinyx402 in the facilitator's catalog and read what each endpoint takes and returns. An endpoint is listed after its first settled payment, or right away with `pnpm bazaar:register`. The facilitator then calls each endpoint and checks that its live 402 pays our `PAY_TO_ADDRESS`. Agents query the catalog like this:
+
+```ts
+import { HTTPFacilitatorClient } from "@x402/core/http";
+import { withBazaar } from "@x402/extensions/bazaar";
+
+const f = withBazaar(new HTTPFacilitatorClient({ url: "https://whitechain.007575.xyz" }));
+const { resources } = await f.extensions.bazaar.search({ query: "tinyx402" });
+```
 
 Probe it yourself:
 
