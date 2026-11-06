@@ -33,6 +33,18 @@ export function decrypt(blob: string, userId: string) {
   return Buffer.concat([d.update(ct), d.final()]).toString("utf8");
 }
 
+/**
+ * The three ways wallet storage is not ready, each needing a different fix, so a signed-in user
+ * is told which one instead of a generic "not configured". Names no secret — only which setting
+ * is absent — and only a signed-in caller ever sees it.
+ */
+export function walletErrorHint(msg: string) {
+  if (msg.includes("DATABASE_URL")) return "Signed in, but DATABASE_URL is not set on the server.";
+  if (/relation .* does not exist|undefined_table|42P01/i.test(msg)) return "Signed in, but the wallets table is missing \u2014 the database needs `pnpm db:push`.";
+  if (msg.includes("WALLET_ENCRYPTION_KEY")) return "Signed in, but WALLET_ENCRYPTION_KEY is missing or is not 32 bytes of base64.";
+  return "Signed in, but your wallet could not be loaded. Check the server logs.";
+}
+
 /** Returns the user's wallet address, creating the wallet on first call (first Google login). */
 export async function getOrCreateWallet(userId: string) {
   if (!db) throw new Error("DATABASE_URL is not set");

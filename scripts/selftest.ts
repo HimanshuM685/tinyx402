@@ -139,6 +139,12 @@ async function main() {
   assert.ok("error" in w.checkAuthorization({ ...base, validBefore: "99999999999" }, acct.address, shop)); // too long-lived
   assert.ok("error" in w.checkAuthorization({ ...base, nonce: "0x12" }, acct.address, shop));
 
+  // Wallet-unavailable hints: each cause must point at its own fix, never at "signed out".
+  assert.match(w.walletErrorHint("DATABASE_URL is not set"), /DATABASE_URL/);
+  assert.match(w.walletErrorHint('relation "wallets" does not exist'), /db:push/);
+  assert.match(w.walletErrorHint("WALLET_ENCRYPTION_KEY must be 32 bytes, base64"), /WALLET_ENCRYPTION_KEY/);
+  assert.match(w.walletErrorHint("ECONNREFUSED"), /server logs/);
+
   // Proxy matcher: every page runs the OAuth verifier exchange, /api/* stays out of it.
   const { config: proxy } = await import("../proxy");
   const matched = (p: string) => new RegExp(`^${proxy.matcher[0]}$`).test(p);
