@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { GoogleButton } from "./account";
 import { useTheme } from "next-themes";
 import { useSyncExternalStore } from "react";
 
@@ -73,6 +74,7 @@ export function Header() {
             eip155:1874 · testnet
           </span>
           <ThemeToggle />
+          <GoogleButton compact />
           <ConnectButton chainStatus="icon" showBalance={false} accountStatus={{ smallScreen: "avatar", largeScreen: "address" }} />
         </div>
       </div>

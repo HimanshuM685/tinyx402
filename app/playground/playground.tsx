@@ -5,7 +5,9 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { ENDPOINTS, quote } from "@/lib/pricing";
 import { USDT, whitechainSepolia, explorerTx, formatUsdt } from "@/lib/chains";
 import { erc20Abi } from "@/lib/wagmi";
-import { createPaidFetch, readSettlement, saveRun, type PayEvent, type Settlement } from "@/lib/pay-client";
+import { createPaidFetch, walletSigner, platformSigner, readSettlement, saveRun, type PayEvent, type Settlement } from "@/lib/pay-client";
+import { usePlatformWallet, GoogleButton } from "@/components/account";
+import { CopyButton } from "@/components/copy-button";
 import { readSse } from "@/lib/sse";
 import { FIELDS, DEFAULTS, NOTES, buildRequest, type Id, type Form, type Value, type FieldSpec } from "@/lib/playground";
 
@@ -38,6 +40,11 @@ export function Playground() {
   const { address, chainId, isConnected } = useAccount();
   const { data: wallet } = useWalletClient();
   const { switchChain } = useSwitchChain();
+  const platform = usePlatformWallet().data;
+  const [source, setSource] = useState<"platform" | "browser">("platform");
+  // Google platform wallet when signed in (unless the user picks their browser wallet).
+  const onPlatform = !!platform && (source === "platform" || !isConnected);
+  const payer = onPlatform ? platform.address : address;
   const [id, setId] = useState<Id>("search");
   const [forms, setForms] = useState(DEFAULTS);
   const [cap, setCap] = useState("0.25");
@@ -57,13 +64,14 @@ export function Playground() {
     address: USDT.address,
     abi: erc20Abi,
     functionName: "balanceOf",
-    args: address ? [address] : undefined,
+    args: payer ? [payer] : undefined,
     chainId: whitechainSepolia.id,
-    query: { enabled: !!address },
+    query: { enabled: !!payer },
   });
-  const wbt = useBalance({ address, chainId: whitechainSepolia.id, query: { enabled: !!address } });
+  const wbt = useBalance({ address: payer, chainId: whitechainSepolia.id, query: { enabled: !!payer } });
   const usdt = bal.data as bigint | undefined;
-  const wrongChain = isConnected && chainId !== whitechainSepolia.id;
+  const wrongChain = !onPlatform && isConnected && chainId !== whitechainSepolia.id;
+  const signer = onPlatform ? platformSigner(platform.address) : wallet ? walletSigner(wallet) : null;
   const req = useMemo(() => buildRequest(id, form), [id, form]);
   const price = quote(ep.product, "error" in req ? forms[id] : req.body);
   const capBase = Math.round(Number(cap) * 10 ** USDT.decimals);
@@ -72,7 +80,7 @@ export function Playground() {
 
 
   async function run() {
-    if (!wallet || "error" in req) return;
+    if (!signer || "error" in req) return;
     setBusy(true);
     setLog([]);
     setEvents([]);
@@ -87,7 +95,7 @@ export function Playground() {
     let status = 0;
     let s: Settlement | null = null;
     try {
-      const paidFetch = createPaidFetch(wallet, push, String(capBase));
+      const paidFetch = createPaidFetch(signer, push, String(capBase));
       const res = await paidFetch(req.url, { ...req.init, signal: abort.signal });
       status = res.status;
       s = readSettlement(res);
@@ -140,7 +148,7 @@ export function Playground() {
         amount: s?.transaction ? price : "0",
         status,
         ms: Math.round(now() - started),
-        payer: s?.payer ?? address,
+        payer: s?.payer ?? payer,
         tx: s?.transaction,
         input: req.body,
         output: body,
@@ -188,6 +196,28 @@ export function Playground() {
         </div>
 
         <div className="rounded-xl border border-line bg-surface p-4 text-sm">
+          {platform && isConnected && (
+            <Row
+              k="Pay from"
+              v={
+                <select value={source} onChange={(e) => setSource(e.target.value as "platform" | "browser")} className="rounded-md border border-line bg-bg px-2 py-1">
+                  <option value="platform">Google wallet</option>
+                  <option value="browser">Browser wallet</option>
+                </select>
+              }
+            />
+          )}
+          {onPlatform && (
+            <Row
+              k="Google wallet"
+              v={
+                <span className="flex items-center gap-1.5 font-mono text-xs">
+                  {platform.address.slice(0, 6)}…{platform.address.slice(-4)}
+                  <CopyButton text={platform.address} />
+                </span>
+              }
+            />
+          )}
           <Row k="Cost" v={<span className="font-mono">{formatUsdt(price)} USDT</span>} />
           <Row
             k="Your USDT"
@@ -213,9 +243,11 @@ export function Playground() {
           {lowBalance && <p className="mt-2 text-xs text-danger">Not enough test USDT. See the docs for how to get some.</p>}
         </div>
 
-        {!isConnected ? (
-          <div className="flex justify-center rounded-xl border border-dashed border-line p-4">
+        {!signer ? (
+          <div className="flex flex-wrap items-center justify-center gap-3 rounded-xl border border-dashed border-line p-4">
             <ConnectButton label="Connect wallet to run" />
+            <span className="text-xs text-muted">or</span>
+            <GoogleButton compact />
           </div>
         ) : wrongChain ? (
           <button onClick={() => switchChain({ chainId: whitechainSepolia.id })} className="rounded-lg bg-warn px-4 py-3 text-sm font-medium text-black">
@@ -225,7 +257,7 @@ export function Playground() {
           <div className="flex gap-2">
             <button
               onClick={run}
-              disabled={busy || !wallet || "error" in req || overCap}
+              disabled={busy || !signer || "error" in req || overCap}
               className="flex-1 rounded-lg bg-accent px-4 py-3 text-sm font-medium text-accent-ink hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {busy ? "Running…" : `Run with x402 · ${formatUsdt(price)} USDT`}

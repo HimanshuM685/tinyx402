@@ -113,6 +113,32 @@ async function main() {
     assert.ok(v.valid, `bazaar ${e.id}: ${JSON.stringify(v.errors)}`);
   }
 
+  // Platform wallet: key encryption is bound to the user, signing policy, and the signature
+  // must equal what the official x402 EVM client gets from a normal wallet.
+  process.env.WALLET_ENCRYPTION_KEY ||= Buffer.alloc(32, 7).toString("base64");
+  const w = await import("../lib/wallet");
+  const { generatePrivateKey, privateKeyToAccount } = await import("viem/accounts");
+  const { ExactEvmScheme: ExactClient } = await import("@x402/evm/exact/client");
+  const pk = generatePrivateKey();
+  assert.equal(w.decrypt(w.encrypt(pk, "u1"), "u1"), pk);
+  assert.throws(() => w.decrypt(w.encrypt(pk, "u1"), "u2")); // row swapped to another user
+  const acct = privateKeyToAccount(pk);
+  const shop = "0x000000000000000000000000000000000000dEaD";
+  const reqs = { scheme: "exact", network: "eip155:1874", asset: "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7", amount: "50000", payTo: shop, maxTimeoutSeconds: 300, extra: { name: "Tether USD", version: "1" } };
+  let captured: { primaryType: string; message: Record<string, unknown> } | null = null;
+  let direct = "";
+  const capture = { address: acct.address, signTypedData: async (m: Parameters<typeof acct.signTypedData>[0]) => { captured = m as never; return (direct = await acct.signTypedData(m)); } };
+  await new ExactClient(capture as never).createPaymentPayload(2, reqs as never);
+  const m = captured!.message as Record<string, unknown>;
+  const chk = w.checkAuthorization({ to: String(m.to), value: String(m.value), validAfter: String(m.validAfter), validBefore: String(m.validBefore), nonce: String(m.nonce) }, acct.address, shop);
+  assert.ok("message" in chk, "error" in chk ? chk.error : "");
+  assert.equal(await w.signWithKey(pk, chk.message!), direct);
+  const base = { to: shop, value: "50000", validAfter: "0", validBefore: String(Math.floor(Date.now() / 1000) + 300), nonce: "0x" + "ab".repeat(32) };
+  assert.ok("error" in w.checkAuthorization({ ...base, to: "0x1111111111111111111111111111111111111111" }, acct.address, shop)); // other recipient
+  assert.ok("error" in w.checkAuthorization({ ...base, value: "999999999" }, acct.address, shop)); // over cap
+  assert.ok("error" in w.checkAuthorization({ ...base, validBefore: "99999999999" }, acct.address, shop)); // too long-lived
+  assert.ok("error" in w.checkAuthorization({ ...base, nonce: "0x12" }, acct.address, shop));
+
   // Live x402 check (opt-in): X402_CHECK_URL=http://localhost:3000 pnpm selftest
   const live = process.env.X402_CHECK_URL;
   if (live) {

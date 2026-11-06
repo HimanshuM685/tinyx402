@@ -10,6 +10,15 @@ The [playground](/playground) runs real, paid requests from your browser wallet.
 
 Click **Connect wallet**. Any browser wallet works: MetaMask, Rabby, Brave, OKX, Coinbase Wallet, or any other extension (they're detected automatically). On mobile, open the site in your wallet app's built-in browser. If your wallet is on a different chain, the playground offers to switch to **Whitechain Sepolia** (`1874`) and adds it if missing.
 
+### Or sign in with Google
+
+No wallet extension? Click **Sign in with Google**. The first time you sign in, tinyx402 creates a **platform wallet** for you. The playground shows its address with a copy button. Fund that address like any other wallet, and runs are paid from it with no wallet pop-up.
+
+- It is a normal x402 payment: the same EIP-3009 signature, settled by the same facilitator.
+- The key is generated and held by this deployment, encrypted at rest. It can only sign USDT payments to this deployment's `payTo`, up to 5 USDT per payment and valid for at most an hour. It can't send funds anywhere else.
+- If you have both, **Pay from** switches between the Google wallet and your browser wallet.
+- Google is only for this web app. The API itself never asks for a login (see [Authentication](/docs/authentication)).
+
 ### Fund it with test USDT
 
 The playground shows your USDT balance next to the price of the selected endpoint. See [getting test funds](/docs/whitechain#getting-test-funds). You do not need WBT.

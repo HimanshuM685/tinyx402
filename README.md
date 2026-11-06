@@ -39,6 +39,7 @@ Minimum env for each feature:
 | --- | --- |
 | All paid routes | `PAY_TO_ADDRESS`, `TINYFISH_API_KEY` |
 | Server-side history | `DATABASE_URL`, then `pnpm db:push` |
+| Google login + platform wallets (web app only) | Neon `DATABASE_URL`, `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET`, `WALLET_ENCRYPTION_KEY`, then `pnpm db:push` |
 
 Research must be enabled on the TinyFish account, or TinyFish returns `403` and we return `503` (not charged).
 
@@ -121,12 +122,22 @@ The app is plain Node with no browser binaries, so any host works (`pnpm build &
 
 TinyFish bills the operator's wallet. Search (12,000/day) and Fetch (1,000 URLs/day) have free daily tiers. Research costs **$2 (deep) / $3 (max)** per completed run after 2 free runs a day, which is **above** the default x402 prices here. Datasets and Agent are metered. Adjust `lib/pricing.ts` before going to mainnet.
 
+## Google login and platform wallets
+
+Google sign-in uses [Neon's managed Better Auth](https://neon.com/docs/auth/overview) (`@neon/auth`) and only exists for the web app. `/api/v1/*` never reads a session: anyone can call it with an x402 payment.
+
+- `lib/auth/server.ts` and `app/api/auth/[...path]`: Neon Auth. It's disabled cleanly when `NEON_AUTH_BASE_URL` isn't set.
+- `GET /api/wallet` creates the user's wallet on first sign-in (`lib/wallet.ts`). The private key is generated server-side and stored in `wallets`, encrypted with AES-256-GCM under `WALLET_ENCRYPTION_KEY`, with the user id as AAD.
+- `POST /api/wallet/sign` signs one EIP-3009 authorization. The server builds the domain and types itself (USDT, chain 1874), and `checkAuthorization()` only allows payments `to` our `PAY_TO_ADDRESS`, up to `PLATFORM_WALLET_MAX_PER_PAYMENT`, valid for at most 1 h. The playground uses it as an ordinary x402 signer (`platformSigner` in `lib/pay-client.ts`).
+- Google OAuth works in development with Neon's shared credentials. For production, add your own Google client in Neon Console → Auth, and add your site to trusted domains.
+
 ## Security notes
 
 - Request bodies are parsed with zod objects that drop unknown keys, so account-scoped TinyFish options (vault credentials, browser profiles, `prior_run_id`/`session_id`) can never be used on the operator key.
 - Free follow-up endpoints only accept `[A-Za-z0-9_-]` IDs. Run and dataset IDs are unguessable and returned only to the payer.
 - Rate limiting is an in-memory per-IP window (`RATE_LIMIT_PER_MIN`), applied per instance. Use Redis or Upstash for multi-region deployments.
 - `/api/runs` exposes only on-chain-equivalent data (endpoint, payer, amount, tx). Inputs and outputs are never returned.
+- Platform wallets are custodial: whoever holds `WALLET_ENCRYPTION_KEY` and the database can sign for them. They are scoped to testnet payments to this deployment, but keep the key in your secret store and don't rotate it without re-encrypting (losing it loses every wallet).
 
 ## Scripts
 

@@ -16,18 +16,45 @@ export type PayEvent =
 
 export type Settlement = { transaction: string; payer?: string; network: string; success: boolean };
 
-/**
- * Browser x402 client: wagmi wallet -> EIP-3009 signature -> retried request.
- * The wallet only signs typed data; the facilitator pays gas.
- */
-export function createPaidFetch(wallet: WalletClient, onEvent: (e: PayEvent) => void, maxAmountPerPayment = "250000") {
+type TypedData = { domain: Record<string, unknown>; types: Record<string, unknown>; primaryType: string; message: Record<string, unknown> };
+export type PaySigner = { address: `0x${string}`; sign: (m: TypedData) => Promise<`0x${string}`> };
+
+/** Connected browser wallet (wagmi). */
+export function walletSigner(wallet: WalletClient): PaySigner {
   const account = wallet.account!;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return { address: account.address, sign: (m) => wallet.signTypedData({ account, ...(m as any) }) };
+}
+
+/** Google-login platform wallet: the server signs (EIP-3009 to PAY_TO only, see lib/wallet.ts). */
+export function platformSigner(address: `0x${string}`): PaySigner {
+  return {
+    address,
+    async sign(m) {
+      if (m.primaryType !== "TransferWithAuthorization") throw new Error("Platform wallet only signs EIP-3009 USDT payments");
+      const { to, value, validAfter, validBefore, nonce } = m.message;
+      const res = await fetch("/api/wallet/sign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to, value: String(value), validAfter: String(validAfter), validBefore: String(validBefore), nonce }),
+      });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok || !out.signature) throw new Error(out.error || `Platform wallet signing failed (HTTP ${res.status})`);
+      return out.signature;
+    },
+  };
+}
+
+/**
+ * Browser x402 client: signer -> EIP-3009 signature -> retried request.
+ * The signer only signs typed data; the facilitator pays gas.
+ */
+export function createPaidFetch(payer: PaySigner, onEvent: (e: PayEvent) => void, maxAmountPerPayment = "250000") {
   const signer = {
-    address: account.address,
-    async signTypedData(m: { domain: Record<string, unknown>; types: Record<string, unknown>; primaryType: string; message: Record<string, unknown> }) {
+    address: payer.address,
+    async signTypedData(m: TypedData) {
       onEvent({ kind: "signing", amount: String(m.message.value ?? ""), payTo: String(m.message.to ?? "") });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sig = await wallet.signTypedData({ account, ...(m as any) });
+      const sig = await payer.sign(m);
       onEvent({ kind: "signed" });
       return sig;
     },
