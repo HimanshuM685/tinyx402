@@ -95,6 +95,13 @@ async function main() {
   assert.ok(!("error" in d1));
   assert.equal("prompt" in d1.body || "follow" in d1.body, false); // spec wins, local fields never sent
 
+  const { upstreamFailure, UpstreamError } = await import("../lib/tinyfish");
+  const why = async (s: number, body: unknown) => (await upstreamFailure(new UpstreamError(s, body)).json()).reason;
+  assert.equal(await why(503, { error: "TINYFISH_API_KEY is not configured" }), "operator_key_missing");
+  assert.equal(await why(401, null), "operator_key_rejected");
+  assert.equal(await why(402, null), "operator_out_of_credits");
+  assert.equal(await why(503, null), "upstream_busy");
+
   // Live x402 check (opt-in): X402_CHECK_URL=http://localhost:3000 pnpm selftest
   const live = process.env.X402_CHECK_URL;
   if (live) {

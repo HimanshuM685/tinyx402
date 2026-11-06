@@ -44,8 +44,19 @@ export function upstreamFailure(e: unknown) {
     if (s === 400 || s === 404 || s === 409 || s === 422)
       return NextResponse.json({ error: "invalid_request", upstream: e.body, charged: false }, { status: s });
     if (s === 429) return NextResponse.json({ error: "rate_limited", charged: false }, { status: 429, headers: { "Retry-After": "10" } });
-    if (s === 401 || s === 402 || s === 403 || s === 503)
-      return NextResponse.json({ error: "service_unavailable", message: "Upstream capacity unavailable, try later", charged: false }, { status: 503 });
+    if (s === 401 || s === 402 || s === 403 || s === 503) {
+      // Operator-side problem; log the real cause, tell the caller which kind (no secrets).
+      console.error(`TinyFish ${s}:`, e.message);
+      const reason =
+        e.message.includes("TINYFISH_API_KEY") ? "operator_key_missing"
+        : s === 401 || s === 403 ? "operator_key_rejected"
+        : s === 402 ? "operator_out_of_credits"
+        : "upstream_busy";
+      return NextResponse.json(
+        { error: "service_unavailable", reason, message: "Upstream capacity unavailable, try later", charged: false },
+        { status: 503 },
+      );
+    }
     return NextResponse.json({ error: "upstream_failed", upstream: e.body, charged: false }, { status: 502 });
   }
   const err = e as Error;

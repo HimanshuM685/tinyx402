@@ -14,7 +14,7 @@ Errors are JSON: `{ "error": "<code>", "message": "…" }`. **Only 2xx responses
 | `429` | `rate_limited` | No | More than `RATE_LIMIT_PER_MIN` requests per IP. Honor `Retry-After`. |
 | `502` | `upstream_failed` | No | TinyFish failed, or an agent run ended `FAILED` (see `error.category`). Safe to retry once. |
 | `502` | `all_failed` | No | Fetch: every URL failed. Per-URL errors are in `errors`. |
-| `503` | `service_unavailable` | No | Upstream capacity is temporarily unavailable on this deployment. Retry later. |
+| `503` | `service_unavailable` | No | The upstream provider isn't available on this deployment. `reason` says why: `operator_key_missing`, `operator_key_rejected` or `operator_out_of_credits` (the operator has to fix these), or `upstream_busy` (retry later). |
 | `504` | `upstream_timeout` | No | Upstream didn't answer in time. |
 | `5xx` | settlement error | No | The facilitator couldn't settle. The response is withheld and nothing is transferred. |
 
