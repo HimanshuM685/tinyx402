@@ -4,7 +4,7 @@ export const metadata = { title: "Agent run API" };
 
 Give a start URL and a goal in plain language. A TinyFish web agent operates a real browser (navigating, clicking, filling forms) and returns a structured JSON result.
 
-<Endpoint method="POST" path="/api/v1/agent/run" product="agent" />
+<Endpoint method="POST" path="/v1/agent/run" product="agent" />
 
 ## Body
 
@@ -24,7 +24,7 @@ Vault credentials, browser profiles and webhooks are scoped to the operator's ac
 ## Example
 
 ```ts
-const res = await paidFetch("https://your-domain.com/api/v1/agent/run", {
+const res = await paidFetch("https://your-domain.com/api/arc/v1/agent/run", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({

@@ -11,16 +11,18 @@ import { wrapFetchWithPaymentFromConfig, decodePaymentResponseHeader } from "@x4
 import { ExactEvmScheme } from "@x402/evm/exact/client";
 import { privateKeyToAccount } from "viem/accounts";
 import { readSse } from "../lib/sse";
-import { CHAINS, NETWORKS, isNetwork } from "../lib/chains";
+import { CHAINS, NETWORKS, apiPath, isNetwork, type Network } from "../lib/chains";
 
 const BASE = process.env.TINYX402_URL || "http://localhost:3000";
 
 // Which chain to pay on. Every 402 offers them all, so this has to be chosen, not defaulted —
 // NETWORK=eip155:1874 pnpm pay search "…"
-const network = process.env.NETWORK;
-if (!isNetwork(network)) {
+const chosen = process.env.NETWORK;
+if (!isNetwork(chosen)) {
   throw new Error(`Set NETWORK to one of: ${NETWORKS.join(", ")}`);
 }
+// Declared type, not just narrowed: main() is hoisted, so narrowing would not reach inside it.
+const network: Network = chosen;
 const { asset } = CHAINS[network];
 
 const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
@@ -34,16 +36,16 @@ const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
 const [cmd, a, b] = process.argv.slice(2);
 const stream = process.argv.includes("--stream");
 const post = (path: string, body: unknown) =>
-  paidFetch(`${BASE}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  paidFetch(`${BASE}${apiPath(network, path)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
 async function main() {
   const res = await ({
-    search: () => paidFetch(`${BASE}/api/v1/search?query=${encodeURIComponent(a)}`),
-    fetch: () => post("/api/v1/fetch", { urls: [a] }),
-    agent: () => post(stream ? "/api/v1/agent/run-sse" : "/api/v1/agent/run", { url: a, goal: b }),
-    research: () => post("/api/v1/research", { query: a, mode: "deep" }),
-    datasets: () => post("/api/v1/datasets", { prompt: a, target_rows: Number(b || 10) }),
-    browser: () => post("/api/v1/browser", a ? { url: a } : {}),
+    search: () => paidFetch(`${BASE}${apiPath(network, "/v1/search")}?query=${encodeURIComponent(a)}`),
+    fetch: () => post("/v1/fetch", { urls: [a] }),
+    agent: () => post(stream ? "/v1/agent/run-sse" : "/v1/agent/run", { url: a, goal: b }),
+    research: () => post("/v1/research", { query: a, mode: "deep" }),
+    datasets: () => post("/v1/datasets", { prompt: a, target_rows: Number(b || 10) }),
+    browser: () => post("/v1/browser", a ? { url: a } : {}),
   }[cmd] ?? (() => { throw new Error("usage: pay <search|fetch|agent|research|datasets|browser> ...") }))();
 
   console.error(`HTTP ${res.status} (payer ${account.address})`);

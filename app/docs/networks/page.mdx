@@ -2,7 +2,17 @@ export const metadata = { title: "Networks + facilitators" };
 
 # Networks + facilitators
 
-Every paid endpoint answers `402` with one `accepts` entry **per chain below**. You pay with whichever asset you hold; the price is the same number of base units on both. There is no default — pick one.
+Endpoints are **per chain**: `/api/<chain>/v1/<endpoint>`. The prefix picks the asset, so each
+`402` quotes exactly one and a caller can never be surprised by which chain it must pay on. The
+price is the same number of base units everywhere. There is no default — pick a prefix.
+
+| Chain | Prefix | Example |
+| --- | --- | --- |
+| Arc Testnet | `arc` | `/api/arc/v1/search` |
+| Whitechain Sepolia | `whitechain` | `/api/whitechain/v1/search` |
+
+The old `/api/v1/*` paths are gone; they answer `410` with the replacements, because picking a
+chain for you would mean charging you in an asset you did not choose.
 
 <Networks />
 

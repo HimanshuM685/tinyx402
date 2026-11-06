@@ -1,7 +1,7 @@
 import "server-only";
 import { createNeonAuth } from "@neon/auth/next/server";
 
-// Google login for the web app only. The x402 API (/api/v1/*) never checks a session.
+// Google login for the web app only. The x402 API (/api/<chain>/v1/*) never checks a session.
 export const authConfig =
   process.env.NEON_AUTH_BASE_URL && process.env.NEON_AUTH_COOKIE_SECRET
     ? {

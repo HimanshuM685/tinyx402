@@ -17,14 +17,16 @@ from x402.mechanisms.evm.exact import ExactEvmScheme
 from x402.mechanisms.evm.signers import EthAccountSigner
 
 BASE = os.environ.get("TINYX402_URL", "http://localhost:3000")
-ASSETS = {
-    "eip155:5042002": "0x3600000000000000000000000000000000000000",  # Arc Testnet USDC
-    "eip155:1874": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",  # Whitechain Sepolia USDT
+# Endpoints are per chain: /api/<slug>/v1/<endpoint>. The URL prefix, the network and the asset
+# must agree, or the server quotes one chain and the client refuses to pay in another.
+CHAINS = {
+    "eip155:5042002": ("arc", "0x3600000000000000000000000000000000000000"),  # Arc Testnet USDC
+    "eip155:1874": ("whitechain", "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7"),  # Whitechain Sepolia USDT
 }
 NETWORK = os.environ.get("NETWORK", "")
-if NETWORK not in ASSETS:
-    sys.exit(f"Set NETWORK to one of: {', '.join(ASSETS)}")
-ASSET = ASSETS[NETWORK]
+if NETWORK not in CHAINS:
+    sys.exit(f"Set NETWORK to one of: {', '.join(CHAINS)}")
+SLUG, ASSET = CHAINS[NETWORK]
 
 account = Account.from_key(os.environ["PRIVATE_KEY"])
 client = x402ClientSync.from_config(
@@ -37,7 +39,7 @@ client = x402ClientSync.from_config(
 )
 session = x402_requests(client)
 
-res = session.get(f"{BASE}/api/v1/search", params={"query": sys.argv[1] if len(sys.argv) > 1 else "x402"})
+res = session.get(f"{BASE}/api/{SLUG}/v1/search", params={"query": sys.argv[1] if len(sys.argv) > 1 else "x402"})
 print(res.status_code, res.json())
 if receipt := res.headers.get("PAYMENT-RESPONSE"):
     print("settlement:", decode_payment_response_header(receipt))

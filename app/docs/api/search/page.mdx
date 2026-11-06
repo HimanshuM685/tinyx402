@@ -4,7 +4,7 @@ export const metadata = { title: "Search API" };
 
 Ranked web results (titles, snippets and URLs) from TinyFish Search, ready for an LLM or for code to consume.
 
-<Endpoint method="GET" path="/api/v1/search" product="search" />
+<Endpoint method="GET" path="/v1/search" product="search" />
 
 ## Query parameters
 
@@ -25,7 +25,7 @@ Ranked web results (titles, snippets and URLs) from TinyFish Search, ready for a
 ## Example
 
 ```ts
-const res = await paidFetch("https://your-domain.com/api/v1/search?query=web+automation+tools&location=US");
+const res = await paidFetch("https://your-domain.com/api/arc/v1/search?query=web+automation+tools&location=US");
 ```
 
 ## Response

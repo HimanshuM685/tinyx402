@@ -133,6 +133,7 @@ function setPath(obj: Record<string, unknown>, path: string, v: unknown) {
 }
 
 /** Form -> request body. Empty fields are omitted; validated with the server's own zod schema. */
+/** `url` is the chain-less suffix; the caller composes it with apiPath(network, url). */
 export function buildRequest(id: Id, f: Form): { url: string; init: RequestInit; body: Record<string, unknown> } | { error: string } {
   const ep = ENDPOINTS.find((e) => e.id === id)!;
   const body: Record<string, unknown> = {};

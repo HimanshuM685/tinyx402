@@ -13,11 +13,18 @@ Any EVM wallet works. Pick a chain and fund it:
 
 Either way you need no gas token, because the facilitator submits the transfer. Full details: [Networks + facilitators](/docs/networks#getting-test-funds).
 
-## 2. Try it in the browser
+## 2. Know the URL shape
+
+Every endpoint is **per chain**: `/api/<chain>/v1/<endpoint>`, where `<chain>` is `arc` or
+`whitechain`. The prefix decides which asset you are asked to pay in, so a `402` from one of these
+paths quotes exactly one — there is no guessing and no default. Swap the prefix to switch chains;
+nothing else about the request changes.
+
+## 3. Try it in the browser
 
 Open the [playground](/playground), connect your wallet and press **Run with x402**. You sign one EIP-712 message per request, and the result, payment status and transaction hash appear side by side.
 
-## 3. Call it from code
+## 4. Call it from code
 
 ```bash
 npm i @x402/fetch @x402/evm viem
@@ -41,7 +48,7 @@ const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
   },
 });
 
-const res = await paidFetch("https://your-domain.com/api/v1/search?query=example");
+const res = await paidFetch("https://your-domain.com/api/arc/v1/search?query=example");
 console.log(await res.json());
 ```
 
@@ -53,12 +60,12 @@ Same base units on every chain, since both assets use 6 decimals.
 
 | Endpoint | Price |
 | --- | --- |
-| `GET /api/v1/search` | <Price product="search" /> |
-| `POST /api/v1/fetch` | <Price product="fetch" /> |
-| `POST /api/v1/agent/run` · `/run-sse` | <Price product="agent" /> |
-| `POST /api/v1/research` | <Price product="research" /> (deep), 0.5 (max) |
-| `POST /api/v1/datasets` | <Price product="datasets" /> per target row |
-| `POST /api/v1/browser` | <Price product="browser" /> |
+| `GET /api/arc/v1/search` | <Price product="search" /> |
+| `POST /api/arc/v1/fetch` | <Price product="fetch" /> |
+| `POST /api/arc/v1/agent/run` · `/run-sse` | <Price product="agent" /> |
+| `POST /api/arc/v1/research` | <Price product="research" /> (deep), 0.5 (max) |
+| `POST /api/arc/v1/datasets` | <Price product="datasets" /> per target row |
+| `POST /api/arc/v1/browser` | <Price product="browser" /> |
 
 <Callout>
 You are only charged when a request succeeds. Invalid input (`400`), failed agent runs, upstream failures (`502`/`503`) and anything else that returns a status of 400 or higher are never settled. Research and Datasets settle when the job is **accepted**, because they keep running in the background. [Error codes →](/docs/errors)

@@ -26,7 +26,12 @@ export function Endpoint({ method, path, product }: { method: string; path: stri
   return (
     <div className="not-prose my-5 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3">
       <span className={`rounded-md px-2 py-0.5 font-mono text-xs font-semibold ${method === "GET" ? "bg-accent-soft text-accent" : "bg-surface-2 text-warn"}`}>{method}</span>
-      <code className="font-mono text-sm">{path}</code>
+      {/* `path` is the chain-less suffix; the prefix is what picks the asset you pay in. */}
+      <code className="font-mono text-sm">
+        <span className="text-muted">/api/</span>
+        <span className="text-accent">&lt;chain&gt;</span>
+        {path}
+      </code>
       <span className="ml-auto text-xs text-muted">
         <span className="font-mono">{PRICES[product]}</span> base units · <Price product={product} />
       </span>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Code } from "@/components/code";
 import { ENDPOINTS, PRICES } from "@/lib/pricing";
 import { CHAINS, NETWORKS, formatAmount } from "@/lib/chains";
+import { facilitatorUrlFor } from "@/lib/chain-guard";
 
 const SNIPPET = `import { wrapFetchWithPaymentFromConfig } from "@x402/fetch";
 import { ExactEvmScheme } from "@x402/evm/exact/client";
@@ -20,7 +21,7 @@ const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
   },
 });
 
-const res = await paidFetch("https://your-domain.com/api/v1/search?query=x402");
+const res = await paidFetch("https://your-domain.com/api/arc/v1/search?query=x402");
 console.log(await res.json());`;
 
 const FLOW = [
@@ -97,6 +98,9 @@ export default function Home() {
                     <td className="py-3.5 pr-4">
                       <Link href={`/docs/api/${e.id}`} className="font-mono hover:text-accent">
                         <span className="mr-2 text-[11px] text-muted">{e.method}</span>
+                        {/* e.path is the chain-less suffix; show a real path, not /v1/search. */}
+                        <span className="text-muted">/api/</span>
+                        <span className="text-accent">&lt;chain&gt;</span>
                         {e.path}
                       </Link>
                     </td>
@@ -129,7 +133,7 @@ export default function Home() {
           {NETWORKS.map((n) => (
             <p key={n}>
               <span className="text-ink">{CHAINS[n].label}</span> · facilitator{" "}
-              <code className="font-mono text-ink">{CHAINS[n].facilitatorUrl}</code> · {CHAINS[n].asset.symbol}{" "}
+              <code className="font-mono text-ink">{facilitatorUrlFor(n)}</code> · {CHAINS[n].asset.symbol}{" "}
               <code className="break-all font-mono text-ink">{CHAINS[n].asset.address}</code>
             </p>
           ))}

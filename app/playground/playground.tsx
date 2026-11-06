@@ -2,7 +2,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useAccount, useReadContract, useSwitchChain, useWalletClient, useBalance } from "wagmi";
 import { ENDPOINTS, quote } from "@/lib/pricing";
-import { CHAINS, explorerTx, formatAmount, isNetwork, type Network } from "@/lib/chains";
+import { CHAINS, apiPath, explorerTx, formatAmount, isNetwork, type Network } from "@/lib/chains";
 import { useNetwork } from "@/lib/use-network";
 import { NetworkPicker } from "@/components/network-picker";
 import { erc20Abi } from "@/lib/wagmi";
@@ -102,7 +102,7 @@ export function Playground() {
     let s: Settlement | null = null;
     try {
       const paidFetch = createPaidFetch(signer, network, push, String(capBase));
-      const res = await paidFetch(req.url, { ...req.init, signal: abort.signal });
+      const res = await paidFetch(apiPath(network, req.url), { ...req.init, signal: abort.signal });
       status = res.status;
       s = readSettlement(res);
       if (res.headers.get("content-type")?.includes("text/event-stream") && res.body) {
@@ -150,7 +150,7 @@ export function Playground() {
       saveRun({
         id: newId(),
         at: Math.round(performance.timeOrigin + now()),
-        endpoint: ep.path,
+        endpoint: apiPath(network, ep.path),
         amount: s?.transaction ? price : "0",
         network: isNetwork(s?.network) ? s.network : network,
         status,
@@ -191,7 +191,7 @@ export function Playground() {
         <div className="rounded-xl border border-line bg-surface p-4">
           <div className="mb-4 flex items-center gap-2 font-mono text-xs">
             <span className="rounded bg-surface-2 px-1.5 py-0.5 text-muted">{ep.method}</span>
-            <span className="truncate">{ep.path}</span>
+            <span className="truncate">{network ? apiPath(network, ep.path) : ep.path}</span>
           </div>
           <Fields key={id} specs={FIELDS[id]} form={form} set={set} />
           {"error" in req && (

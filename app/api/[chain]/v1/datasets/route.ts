@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { paidRoute, badRequest } from "@/lib/x402";
 import { DatasetBody, issues } from "@/lib/schemas";
 import { TF, tfJson, upstreamFailure } from "@/lib/tinyfish";
+import { apiPath } from "@/lib/chains";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -9,7 +10,7 @@ export const maxDuration = 120;
 type Dataset = { id: string; run?: { id: string } } & Record<string, unknown>;
 
 // Priced per target row. Planning takes up to a minute; filling continues in the background.
-export const POST = paidRoute("datasets", "Structured dataset filled from the web", async (req: NextRequest) => {
+export const POST = paidRoute("datasets", "Structured dataset filled from the web", async (req: NextRequest, chain) => {
   const p = DatasetBody.safeParse(await req.json().catch(() => null));
   if (!p.success) return badRequest("Invalid body", issues(p.error));
   try {
@@ -20,9 +21,10 @@ export const POST = paidRoute("datasets", "Structured dataset filled from the we
     });
     return NextResponse.json({
       ...ds,
-      poll_url: `/api/v1/datasets/${ds.id}`,
-      rows_url: `/api/v1/datasets/${ds.id}/rows`,
-      events_url: ds.run?.id ? `/api/v1/datasets/${ds.id}/events?run=${ds.run.id}` : null,
+      // Must carry the chain, or the follow-up 404s: every path is chain-scoped now.
+      poll_url: apiPath(chain.network, `/v1/datasets/${ds.id}`),
+      rows_url: apiPath(chain.network, `/v1/datasets/${ds.id}/rows`),
+      events_url: ds.run?.id ? apiPath(chain.network, `/v1/datasets/${ds.id}/events?run=${ds.run.id}`) : null,
     });
   } catch (e) {
     return upstreamFailure(e);

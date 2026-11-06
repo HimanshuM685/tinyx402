@@ -4,7 +4,7 @@ export const metadata = { title: "Authentication via x402" };
 
 There is no API key, account or bearer token. **The payment is the credential.** A request that carries a valid x402 payment is served. A request without one gets `402 Payment Required` and instructions for how to pay.
 
-The **Sign in with Google** button in the web app is a convenience for people without a wallet: it gives them a platform wallet that pays the same way. The API never checks a login, cookie or session. Agents and scripts call `/api/v1/*` directly with an x402 payment.
+The **Sign in with Google** button in the web app is a convenience for people without a wallet: it gives them a platform wallet that pays the same way. The API never checks a login, cookie or session. Agents and scripts call `/api/arc/v1/*` directly with an x402 payment.
 
 ## What identifies you
 

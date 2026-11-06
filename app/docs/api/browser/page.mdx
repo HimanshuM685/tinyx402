@@ -4,7 +4,7 @@ export const metadata = { title: "Browser session API" };
 
 A remote browser session you drive yourself over the Chrome DevTools Protocol, with Playwright, Puppeteer or raw CDP.
 
-<Endpoint method="POST" path="/api/v1/browser" product="browser" />
+<Endpoint method="POST" path="/v1/browser" product="browser" />
 
 ## Body (all optional)
 
@@ -23,7 +23,7 @@ Session creation takes 10–30 seconds, so give your HTTP client a timeout of at
   "session_id": "br-a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "cdp_url": "wss://example.tinyfish.io/cdp",
   "base_url": "https://example.tinyfish.io",
-  "end_url": "/api/v1/browser/br-a1b2c3d4-…"
+  "end_url": "/api/arc/v1/browser/br-a1b2c3d4-…"
 }
 ```
 
@@ -32,7 +32,7 @@ Session creation takes 10–30 seconds, so give your HTTP client a timeout of at
 ```ts
 import { chromium } from "playwright";
 
-const s = await (await paidFetch("https://your-domain.com/api/v1/browser", {
+const s = await (await paidFetch("https://your-domain.com/api/arc/v1/browser", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ url: "https://www.tinyfish.ai" }),

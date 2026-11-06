@@ -2,22 +2,22 @@
 
 [TinyFish](https://tinyfish.ai) web APIs (Search, Fetch, Agent, Research, Datasets and remote Browser sessions) resold **per request** for stablecoins on [two chains](#chains) through the [x402](https://x402.org) protocol. Callers need no API keys, accounts or billing, because the payment is the credential. The operator's single `TINYFISH_API_KEY` stays on the server.
 
-- **API**: `/api/v1/*`. Every route is protected by x402 v2. Each `402` advertises one `accepts` entry per chain, and the caller pays with whichever asset they hold.
+- **API**: `/api/<chain>/v1/*` — endpoints are per chain (`arc`, `whitechain`). The prefix decides the asset, so each `402` quotes exactly one and a caller is never surprised by which chain it must pay on. Swap the prefix to switch chains; nothing else changes. The old `/api/v1/*` answers `410` with the replacements.
 - **Playground** (`/playground`): connect a wallet, run any endpoint, and watch the 402, signature, retry and settlement as they happen.
 - **Dashboard** (`/dashboard`): run and payment history, built from `PAYMENT-RESPONSE` receipts plus Postgres when configured.
 - **Docs** (`/docs`): quick start, x402 explainer, API reference, and TypeScript, Python and curl examples. Also `/api/openapi` and `/llms.txt`.
 
 | Endpoint | Method | Price |
 | --- | --- | --- |
-| `/api/v1/search` | GET | 0.01 (`10000`) |
-| `/api/v1/fetch` | POST | 0.015 (`15000`) |
-| `/api/v1/agent/run` | POST | 0.05 (`50000`) |
-| `/api/v1/agent/run-sse` | POST | 0.05 (`50000`) |
-| `/api/v1/research` | POST | 0.20 (`200000`), or 0.50 for `mode: "max"` |
-| `/api/v1/datasets` | POST | 0.02 (`20000`) × `target_rows` |
-| `/api/v1/browser` | POST | 0.03 (`30000`) |
+| `/api/<chain>/v1/search` | GET | 0.01 (`10000`) |
+| `/api/<chain>/v1/fetch` | POST | 0.015 (`15000`) |
+| `/api/<chain>/v1/agent/run` | POST | 0.05 (`50000`) |
+| `/api/<chain>/v1/agent/run-sse` | POST | 0.05 (`50000`) |
+| `/api/<chain>/v1/research` | POST | 0.20 (`200000`), or 0.50 for `mode: "max"` |
+| `/api/<chain>/v1/datasets` | POST | 0.02 (`20000`) × `target_rows` |
+| `/api/<chain>/v1/browser` | POST | 0.03 (`30000`) |
 
-Requests that fail (any status of 400 or higher), including agent runs that end `FAILED`, are **never settled**. Research and Datasets run for 5–45 minutes, so their paid call settles when the job is accepted. They are followed on free endpoints (`/api/v1/research/{id}[/events]`, `/api/v1/datasets/{id}[/rows|/events]`).
+Requests that fail (any status of 400 or higher), including agent runs that end `FAILED`, are **never settled**. Research and Datasets run for 5–45 minutes, so their paid call settles when the job is accepted. They are followed on free endpoints (`/api/arc/v1/research/{id}[/events]`, `/api/arc/v1/datasets/{id}[/rows|/events]`).
 
 ## Stack
 
@@ -46,12 +46,17 @@ Research must be enabled on the TinyFish account, or TinyFish returns `403` and 
 Check that the server is gated:
 
 ```bash
-curl -i "localhost:3000/api/v1/search?query=x402"     # 402 + PAYMENT-REQUIRED header
+curl -i "localhost:3000/api/arc/v1/search?query=x402"     # 402 + PAYMENT-REQUIRED header
 ```
 
 ## Chains
 
-Every `402` lists one `accepts` entry per chain. Prices are the same number of base units on both, because both assets use 6 decimals.
+Each chain has its own URL prefix, its own asset and its own facilitator. Prices are the same number of base units on both, because both assets use 6 decimals.
+
+| | Prefix | Example |
+| --- | --- | --- |
+| Arc Testnet | `arc` | `/api/<chain>/v1/search` |
+| Whitechain Sepolia | `whitechain` | `/api/whitechain/v1/search` |
 
 | | Arc Testnet | Whitechain Sepolia |
 | --- | --- | --- |
@@ -89,7 +94,7 @@ const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
   },
 });
 
-const res = await paidFetch("https://your-domain.com/api/v1/search?query=example");
+const res = await paidFetch("https://your-domain.com/api/arc/v1/search?query=example");
 ```
 
 Ready-made clients in this repo:
@@ -105,24 +110,25 @@ PRIVATE_KEY=0x… python examples/python/pay.py "x402"    # pip install "x402[re
 
 Payments are standard x402 v2 with a facilitator, not direct transfers. The server never sends a transaction and the client only signs. `withX402` (the x402 middleware) gates each route, and the facilitator at `FACILITATOR_URL` verifies and settles. For a step-by-step map, see [How x402 payments work: where it lives in the code](/docs/how-x402-works#where-it-lives-in-the-code).
 
-- `lib/x402.ts` registers `ExactEvmScheme` for **each** advertised network on one `x402ResourceServer`, backed by **one `HTTPFacilitatorClient` per chain**. The SDK reads `/supported` from each and routes verify/settle by the network inside the payment payload, so there is no dispatch code of our own. `paid(product)` returns one option per chain:
+- `lib/x402.ts` registers `ExactEvmScheme` for **each** advertised network on one `x402ResourceServer`, backed by **one `HTTPFacilitatorClient` per chain**. The SDK reads `/supported` from each and routes verify/settle by the network inside the payment payload, so there is no dispatch code of our own. The chain comes from the URL (`app/api/[chain]/v1/*`, resolved by `resolveChain`), so `paid(product, description, network)` returns a single option:
 
   ```ts
-  accepts: ADVERTISED.map((n) => ({
+  accepts: {
     scheme: "exact",
-    network: n,
+    network,                                   // from the URL prefix
     payTo,
-    price: { asset: CHAINS[n].asset.address, amount: "10000", extra: CHAINS[n].asset.extra },
-  }))
+    price: { asset: asset.address, amount: "10000", extra: asset.extra },
+  }
   ```
 
   `extra` must come from the registry per chain. A shared literal is how one chain's signatures
-  silently stop verifying.
+  silently stop verifying. `paidRoute`/`paidStream` memoise per chain, not per module — one cached
+  wrapper would otherwise serve every chain the first caller's quote.
 
 - `paidRoute()` wraps `withX402` from `@x402/next`, which settles only after a response with a status below 400. It adds rate limiting and the run log on top. Every route validates its input with zod, forwards it to TinyFish (`lib/tinyfish.ts`) with the operator key, and maps any upstream failure to a status of 400 or higher, so nothing is settled.
 - Research and Datasets use a **dynamic x402 price** computed from the request body (`quote()` in `lib/pricing.ts`), for `mode` and `target_rows` respectively.
 - `paidStream()` handles `/agent/run-sse`. `withX402` buffers the whole body before settling, so the server verifies first, opens the TinyFish stream, relays events, settles only on `COMPLETE`/`COMPLETED`, and sends the receipt as a final `payment` event.
-- Prices live only in `lib/pricing.ts`. Every chain, asset and facilitator lives only in `lib/chains.ts` (`CHAINS`), which is where a new chain is added — nothing else names one. `X402_NETWORKS` narrows which are advertised; unset means all of them.
+- Prices live only in `lib/pricing.ts`, where `path` is the chain-less suffix (`/v1/search`); `apiPath(network, path)` is the only place a public URL is spelled out. Every chain, asset, slug and facilitator lives only in `lib/chains.ts` (`CHAINS`), which is where a new chain is added — nothing else names one. `X402_NETWORKS` narrows which are advertised; unset means all. `X402_NETWORK` (singular, pre-multi-chain) is ignored with a warning.
 
 ## Deploying to Vercel
 
@@ -138,7 +144,7 @@ TinyFish bills the operator's wallet. Search (12,000/day) and Fetch (1,000 URLs/
 
 ## Google login and platform wallets
 
-Google sign-in uses [Neon's managed Better Auth](https://neon.com/docs/auth/overview) (`@neon/auth`) and only exists for the web app. `/api/v1/*` never reads a session: anyone can call it with an x402 payment.
+Google sign-in uses [Neon's managed Better Auth](https://neon.com/docs/auth/overview) (`@neon/auth`) and only exists for the web app. `/api/arc/v1/*` never reads a session: anyone can call it with an x402 payment.
 
 - `lib/auth/server.ts` and `app/api/auth/[...path]`: Neon Auth. It's disabled cleanly when `NEON_AUTH_BASE_URL` isn't set.
 - `proxy.ts`: required. Google returns to `?neon_auth_session_verifier=…`, and only the middleware exchanges that verifier for the session cookie. Every page is public, so it skips `auth.middleware()` (route protection) and calls `processAuthMiddleware` directly: exchange, refresh, never redirect. Nothing to keep in sync when you add a page. `/api/*` is outside the matcher, which `pnpm selftest` asserts.
@@ -161,7 +167,7 @@ Google sign-in uses [Neon's managed Better Auth](https://neon.com/docs/auth/over
 | `pnpm dev` / `build` / `start` | Next.js |
 | `pnpm lint` / `typecheck` | |
 | `pnpm selftest` | asserts on prices and dynamic quotes, per-chain `accepts`/assets/domains, 6-decimal and Arc-minimum guards, per-chain custodial signatures, field stripping, SSE codec, agent relay, Bazaar docs. `X402_CHECK_URL=…` adds a live 402 and per-chain facilitator check |
-| `NETWORK=… pnpm pay <endpoint> …` | paid CLI client; `NETWORK` picks the chain |
+| `NETWORK=… pnpm pay <endpoint> …` | paid CLI client; `NETWORK` picks the chain and the URL prefix |
 | `pnpm bazaar:register` | list all endpoints in every advertised chain's Bazaar (run after each deploy; needs public `NEXT_PUBLIC_SITE_URL` and `PAY_TO_ADDRESS`) |
 | `pnpm db:push` | create the `runs` and `wallets` tables |
 

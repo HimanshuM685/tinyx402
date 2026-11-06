@@ -26,6 +26,7 @@ export function quote(product: Product, body?: unknown): string {
   return PRICES[product];
 }
 
+/** `path` is the chain-less suffix; compose a real URL with apiPath(network, path). */
 export const ENDPOINTS: {
   id: string;
   product: Product;
@@ -36,11 +37,11 @@ export const ENDPOINTS: {
   priceNote?: string;
   stream?: boolean;
 }[] = [
-  { id: "search", product: "search", method: "GET", path: "/api/v1/search", title: "Search", description: "Structured web search results" },
-  { id: "fetch", product: "fetch", method: "POST", path: "/api/v1/fetch", title: "Fetch", description: "Clean content extraction from up to 10 URLs" },
-  { id: "agent", product: "agent", method: "POST", path: "/api/v1/agent/run", title: "Agent", description: "Goal-based browser automation" },
-  { id: "agent-sse", product: "agent", method: "POST", path: "/api/v1/agent/run-sse", title: "Agent (SSE)", description: "Streaming agent run", stream: true },
-  { id: "research", product: "research", method: "POST", path: "/api/v1/research", title: "Research", description: "Cited multi-source research report", priceNote: "0.50 for mode \"max\"" },
-  { id: "datasets", product: "datasets", method: "POST", path: "/api/v1/datasets", title: "Datasets", description: "Structured dataset filled from the web", priceNote: "per target row" },
-  { id: "browser", product: "browser", method: "POST", path: "/api/v1/browser", title: "Browser", description: "Remote browser session (CDP)" },
+  { id: "search", product: "search", method: "GET", path: "/v1/search", title: "Search", description: "Structured web search results" },
+  { id: "fetch", product: "fetch", method: "POST", path: "/v1/fetch", title: "Fetch", description: "Clean content extraction from up to 10 URLs" },
+  { id: "agent", product: "agent", method: "POST", path: "/v1/agent/run", title: "Agent", description: "Goal-based browser automation" },
+  { id: "agent-sse", product: "agent", method: "POST", path: "/v1/agent/run-sse", title: "Agent (SSE)", description: "Streaming agent run", stream: true },
+  { id: "research", product: "research", method: "POST", path: "/v1/research", title: "Research", description: "Cited multi-source research report", priceNote: "0.50 for mode \"max\"" },
+  { id: "datasets", product: "datasets", method: "POST", path: "/v1/datasets", title: "Datasets", description: "Structured dataset filled from the web", priceNote: "per target row" },
+  { id: "browser", product: "browser", method: "POST", path: "/v1/browser", title: "Browser", description: "Remote browser session (CDP)" },
 ];

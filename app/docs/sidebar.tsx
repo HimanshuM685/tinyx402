@@ -30,6 +30,8 @@ export function DocsSidebar() {
       <div>
         <div className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted">Machine readable</div>
         <ul className="space-y-1.5 pl-3 text-muted">
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- a JSON route handler, not a
+              page; the rule only flags it because app/api/[chain] makes /api/openapi look routable */}
           <li><a href="/api/openapi" className="hover:text-ink">OpenAPI 3.1</a></li>
           <li><a href="/llms.txt" className="hover:text-ink">llms.txt</a></li>
         </ul>

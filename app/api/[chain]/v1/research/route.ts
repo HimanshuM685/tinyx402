@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { paidRoute, badRequest } from "@/lib/x402";
 import { ResearchBody, issues } from "@/lib/schemas";
 import { TF, tfJson, upstreamFailure } from "@/lib/tinyfish";
+import { apiPath } from "@/lib/chains";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // Research takes 5-45 minutes, longer than any request can stay open, so it starts async.
-// The run is charged once it is accepted; follow it for free at /api/v1/research/{id}[/events].
-export const POST = paidRoute("research", "Cited multi-source research report", async (req: NextRequest) => {
+// The run is charged once it is accepted; follow it for free at the returned URLs.
+export const POST = paidRoute("research", "Cited multi-source research report", async (req: NextRequest, chain) => {
   const p = ResearchBody.safeParse(await req.json().catch(() => null));
   if (!p.success) return badRequest("Invalid body", issues(p.error));
   try {
@@ -23,8 +24,9 @@ export const POST = paidRoute("research", "Cited multi-source research report", 
       research_run_id: id,
       status: "QUEUED",
       mode: p.data.mode,
-      poll_url: `/api/v1/research/${id}`,
-      events_url: `/api/v1/research/${id}/events`,
+      // Must carry the chain, or the follow-up 404s: every path is chain-scoped now.
+      poll_url: apiPath(chain.network, `/v1/research/${id}`),
+      events_url: apiPath(chain.network, `/v1/research/${id}/events`),
     });
   } catch (e) {
     return upstreamFailure(e);

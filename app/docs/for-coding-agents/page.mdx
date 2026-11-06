@@ -12,32 +12,35 @@ Payment
   client     @x402/fetch wrapFetchWithPaymentFromConfig + @x402/evm/exact/client ExactEvmScheme
   safety     ALWAYS set spendControls.allowedAssets with maxAmountPerPayment
 
-Chains - every 402 lists one `accepts` entry per chain; pay with whichever you hold.
-  Prices are the same base units on both (both assets are 6 decimals).
-  eip155:5042002  Arc Testnet         asset 0x3600000000000000000000000000000000000000
+Chains - ENDPOINTS ARE PER CHAIN: /api/<chain>/v1/<endpoint>. The path decides the asset, so
+  each 402 lists exactly ONE accepts entry and you must pick a prefix before you call.
+  Prices are the same base units on every chain (all assets are 6 decimals).
+  prefix "arc"         eip155:5042002  Arc Testnet   asset 0x3600000000000000000000000000000000000000
                   USDC, 6 decimals, domain { name: "USDC", version: "2" }
                   RPC https://rpc.testnet.arc.io   facilitator https://arc.007575.xyz
                   gas is USDC and the facilitator pays it; faucet https://faucet.circle.com
-  eip155:1874     Whitechain Sepolia  asset 0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7
+  prefix "whitechain"  eip155:1874     Whitechain Sepolia  asset 0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7
                   USDT, 6 decimals, domain { name: "Tether USD", version: "1" }
                   RPC https://rpc.testnet.whitechain.io   facilitator https://whitechain.007575.xyz
-  Register the scheme + allowedAssets for ONE of these - the network and asset go together.
-  Read `extra` from the chosen accepts entry; the domain version differs per chain and a wrong
+  Register the scheme + allowedAssets for the chain whose prefix you called - the URL, the
+  network and the asset must agree, or your client refuses to pay the quote it is given.
+  Read `extra` from the accepts entry you got; the domain version differs per chain and a wrong
   one recovers to another address, so verification fails with nothing to inspect.
 
-Paid endpoints (price in base units, same on every chain)
-  GET  /api/v1/search?query=&location=&domain_type=      10000  -> { results: [{ position, title, snippet, url, site_name }] }
-  POST /api/v1/fetch     { urls[], format, purpose? }    15000  -> { results: [{ url, title, text }], errors: [] }
-  POST /api/v1/agent/run { url, goal, output_schema? }   50000  -> { run_id, status, result }
-  POST /api/v1/agent/run-sse   (same body, SSE)          50000
-  POST /api/v1/research  { query, mode: deep|max }      200000 (max: 500000) -> { research_run_id, events_url }
-  POST /api/v1/datasets  { prompt, target_rows }         20000 x target_rows -> { id, rows_url, events_url }
-  POST /api/v1/browser   { url?, proxy_config? }         30000  -> { session_id, cdp_url }
+Paid endpoints - replace <chain> with arc or whitechain (price in base units, same on every chain)
+  GET  /api/<chain>/v1/search?query=&location=&domain_type=      10000  -> { results: [{ position, title, snippet, url, site_name }] }
+  POST /api/<chain>/v1/fetch     { urls[], format, purpose? }    15000  -> { results: [{ url, title, text }], errors: [] }
+  POST /api/<chain>/v1/agent/run { url, goal, output_schema? }   50000  -> { run_id, status, result }
+  POST /api/<chain>/v1/agent/run-sse   (same body, SSE)          50000
+  POST /api/<chain>/v1/research  { query, mode: deep|max }      200000 (max: 500000) -> { research_run_id, events_url }
+  POST /api/<chain>/v1/datasets  { prompt, target_rows }         20000 x target_rows -> { id, rows_url, events_url }
+  POST /api/<chain>/v1/browser   { url?, proxy_config? }         30000  -> { session_id, cdp_url }
 
-Free follow-ups (IDs from the paid call)
-  GET /api/v1/research/{id}            GET /api/v1/research/{id}/events (SSE)
-  GET /api/v1/datasets/{id}            GET /api/v1/datasets/{id}/rows?after=   GET /api/v1/datasets/{id}/events?run= (SSE)
-  DELETE /api/v1/browser/{id}
+Free follow-ups (IDs from the paid call; use the same <chain> prefix, or just use the
+  poll_url / rows_url / events_url the paid call returned)
+  GET /api/<chain>/v1/research/{id}            GET /api/<chain>/v1/research/{id}/events (SSE)
+  GET /api/<chain>/v1/datasets/{id}            GET /api/<chain>/v1/datasets/{id}/rows?after=   GET /api/<chain>/v1/datasets/{id}/events?run= (SSE)
+  DELETE /api/<chain>/v1/browser/{id}
 
 Rules
   - 4xx/5xx responses are never charged. Retry 502/503/504 once; do not retry 400.

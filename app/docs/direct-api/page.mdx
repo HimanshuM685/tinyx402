@@ -29,7 +29,7 @@ const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
 });
 
 // GET
-const res = await paidFetch("https://your-domain.com/api/v1/search?query=example");
+const res = await paidFetch("https://your-domain.com/api/arc/v1/search?query=example");
 console.log(await res.json());
 
 // Receipt
@@ -37,7 +37,7 @@ const receipt = decodePaymentResponseHeader(res.headers.get("PAYMENT-RESPONSE")!
 console.log(receipt.transaction, receipt.network); // tx hash + the chain it settled on
 
 // POST
-const page = await paidFetch("https://your-domain.com/api/v1/fetch", {
+const page = await paidFetch("https://your-domain.com/api/arc/v1/fetch", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ urls: ["https://example.com"], format: "markdown" }),
@@ -47,7 +47,7 @@ const page = await paidFetch("https://your-domain.com/api/v1/fetch", {
 ### Streaming (SSE)
 
 ```ts
-const res = await paidFetch("https://your-domain.com/api/v1/agent/run-sse", {
+const res = await paidFetch("https://your-domain.com/api/arc/v1/agent/run-sse", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ url: "https://news.ycombinator.com", goal: "Top 3 story titles" }),
@@ -114,11 +114,11 @@ client = x402ClientSync.from_config(x402ClientConfig(
 ))
 session = x402_requests(client)
 
-res = session.get("https://your-domain.com/api/v1/search", params={"q": "example"})
+res = session.get("https://your-domain.com/api/arc/v1/search", params={"q": "example"})
 print(res.json())
 print(decode_payment_response_header(res.headers["PAYMENT-RESPONSE"]))
 
-res = session.post("https://your-domain.com/api/v1/fetch", json={"urls": ["https://www.tinyfish.ai/"]})
+res = session.post("https://your-domain.com/api/arc/v1/fetch", json={"urls": ["https://www.tinyfish.ai/"]})
 print(res.json()["results"][0]["text"])
 ```
 
@@ -129,14 +129,14 @@ For asyncio, use `x402Client` and `x402HttpxClient` from `x402.http.clients`. Th
 With curl you cannot sign, but you can see the protocol. Ask for the price:
 
 ```bash
-curl -si "https://your-domain.com/api/v1/search?query=example" | grep -i payment-required \
+curl -si "https://your-domain.com/api/arc/v1/search?query=example" | grep -i payment-required \
   | cut -d' ' -f2 | tr -d '\r' | base64 -d | jq
 ```
 
 Then send a payload you signed elsewhere:
 
 ```bash
-curl -s "https://your-domain.com/api/v1/search?query=example" \
+curl -s "https://your-domain.com/api/arc/v1/search?query=example" \
   -H "PAYMENT-SIGNATURE: $PAYMENT_PAYLOAD_B64" -D - | grep -i payment-response
 ```
 

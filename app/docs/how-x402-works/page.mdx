@@ -7,7 +7,7 @@ x402 brings back the long-unused HTTP `402 Payment Required` status code. The se
 ## The four messages
 
 <Sequence hops={[
-  ["client", "tinyx402", "GET /api/v1/search?query=…", "No payment attached."],
+  ["client", "tinyx402", "GET /api/arc/v1/search?query=…", "No payment attached."],
   ["tinyx402", "client", "402 + PAYMENT-REQUIRED", "Price, asset, network, payTo."],
   ["client", "", "sign EIP-3009 authorization", "Off-chain. No gas, no broadcast."],
   ["client", "tinyx402", "GET … + PAYMENT-SIGNATURE"],
@@ -25,7 +25,7 @@ Unpaid requests get `402` with a `PAYMENT-REQUIRED` header. Decoded, it looks li
 ```json
 {
   "x402Version": 2,
-  "resource": { "url": "https://…/api/v1/search?query=x402", "description": "Structured web search results" },
+  "resource": { "url": "https://…/api/arc/v1/search?query=x402", "description": "Structured web search results" },
   "accepts": [{
     "scheme": "exact",
     "network": "eip155:1874",
@@ -87,14 +87,14 @@ const { resources } = await f.extensions.bazaar.search({ query: "tinyx402" });
 Probe it yourself:
 
 ```bash
-curl -i "$SITE/api/v1/search?query=x402"        # 402 + PAYMENT-REQUIRED
+curl -i "$SITE/api/arc/v1/search?query=x402"        # 402 + PAYMENT-REQUIRED
 curl https://arc.007575.xyz/supported            # facilitator: exact on eip155:5042002
 curl https://whitechain.007575.xyz/supported     # facilitator: exact on eip155:1874
 ```
 
 ## Streaming: Agent (SSE)
 
-`/api/v1/agent/run-sse` verifies the payment before the stream opens and settles only when the run reports `COMPLETED`. Headers are already sent by then, so the receipt arrives as the last event:
+`/api/arc/v1/agent/run-sse` verifies the payment before the stream opens and settles only when the run reports `COMPLETED`. Headers are already sent by then, so the receipt arrives as the last event:
 
 ```text
 event: payment

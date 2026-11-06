@@ -4,9 +4,9 @@ export const metadata = { title: "Agent run (SSE) API" };
 
 Same as [Agent run](/docs/api/agent), but streams progress as Server-Sent Events, including a live browser view URL.
 
-<Endpoint method="POST" path="/api/v1/agent/run-sse" product="agent" />
+<Endpoint method="POST" path="/v1/agent/run-sse" product="agent" />
 
-The body is identical to `/api/v1/agent/run`. The response is `text/event-stream`. Each upstream event is relayed with its `type` lowercased as the event name, and the payment receipt is appended at the end.
+The body is identical to `/api/arc/v1/agent/run`. The response is `text/event-stream`. Each upstream event is relayed with its `type` lowercased as the event name, and the payment receipt is appended at the end.
 
 ## Events
 

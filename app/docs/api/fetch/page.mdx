@@ -4,7 +4,7 @@ export const metadata = { title: "Fetch API" };
 
 Clean extracted content from up to 10 URLs in one call. JavaScript-heavy pages are rendered when needed, and PDFs and JSON endpoints work too.
 
-<Endpoint method="POST" path="/api/v1/fetch" product="fetch" />
+<Endpoint method="POST" path="/v1/fetch" product="fetch" />
 
 One payment covers the whole batch. Each URL is processed independently, and per-URL failures appear in `errors[]`. **You are charged only if at least one URL succeeds.**
 
@@ -26,7 +26,7 @@ One payment covers the whole batch. Each URL is processed independently, and per
 ## Example
 
 ```ts
-await paidFetch("https://your-domain.com/api/v1/fetch", {
+await paidFetch("https://your-domain.com/api/arc/v1/fetch", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({

@@ -4,7 +4,7 @@ export const metadata = { title: "Research API" };
 
 A source-backed research report. TinyFish plans sub-questions, searches, reads sources and writes a cited synthesis.
 
-<Endpoint method="POST" path="/api/v1/research" product="research" />
+<Endpoint method="POST" path="/v1/research" product="research" />
 
 Price depends on mode: `deep` is <Price product="research" />, and `max` is **0.5**. The `402` response quotes the exact amount for your request body.
 
@@ -32,19 +32,19 @@ Research takes **5–45 minutes**, which is longer than an HTTP request can stay
   "research_run_id": "019a1234-1234-7000-8000-123456789abc",
   "status": "QUEUED",
   "mode": "deep",
-  "poll_url": "/api/v1/research/019a1234-…",
-  "events_url": "/api/v1/research/019a1234-…/events"
+  "poll_url": "/api/arc/v1/research/019a1234-…",
+  "events_url": "/api/arc/v1/research/019a1234-…/events"
 }
 ```
 
 ## Follow the run (free)
 
-**Live events**: `GET /api/v1/research/{id}/events` (SSE). Events include `created`, `plan_updated`, `sources_searched`, `source_fetched`, `partial_summary`, `synthesis_delta`, `final_result` (report, citations, termination reason), `run_stats`, `error` and `done`. Each stream connection closes after 5 minutes. Reconnect (optionally with `Last-Event-ID`) until you see `done`. Disconnecting does not cancel the run.
+**Live events**: `GET /api/arc/v1/research/{id}/events` (SSE). Events include `created`, `plan_updated`, `sources_searched`, `source_fetched`, `partial_summary`, `synthesis_delta`, `final_result` (report, citations, termination reason), `run_stats`, `error` and `done`. Each stream connection closes after 5 minutes. Reconnect (optionally with `Last-Event-ID`) until you see `done`. Disconnecting does not cancel the run.
 
 ```ts
-const run = await (await paidFetch(".../api/v1/research", { method: "POST", headers, body })).json();
+const run = await (await paidFetch(".../api/arc/v1/research", { method: "POST", headers, body })).json();
 const res = await fetch(`https://your-domain.com${run.events_url}`);
 // parse SSE; stop at {"event":"final_result", "result": "...markdown...", "citations": [...]}
 ```
 
-**Poll**: `GET /api/v1/research/{id}` returns `status` (`QUEUED`, `RUNNING`, `COMPLETED`, `FAILED`, `CANCELLED` or `TIMED_OUT`) and, once done, `deep_result.result` (the report) with `citations`. Events expire after an hour, but polling always works.
+**Poll**: `GET /api/arc/v1/research/{id}` returns `status` (`QUEUED`, `RUNNING`, `COMPLETED`, `FAILED`, `CANCELLED` or `TIMED_OUT`) and, once done, `deep_result.result` (the report) with `citations`. Events expire after an hour, but polling always works.

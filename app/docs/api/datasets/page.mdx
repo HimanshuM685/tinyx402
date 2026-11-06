@@ -4,7 +4,7 @@ export const metadata = { title: "Datasets API" };
 
 Describe a dataset in one sentence. TinySet designs the columns, finds matching entities on the web, and fills one row per entity with values taken from real pages.
 
-<Endpoint method="POST" path="/api/v1/datasets" product="datasets" />
+<Endpoint method="POST" path="/v1/datasets" product="datasets" />
 
 **Priced per target row**: `target_rows × 20000` base units (0.02 per row). 10 rows cost 0.2 and 250 rows cost 5, in whichever stablecoin you pay with. The `402` response quotes the exact amount. Raise your `maxAmountPerPayment` to match.
 
@@ -21,7 +21,7 @@ Send `prompt` or `spec`. Planning takes up to a minute, then the paid call retur
 ## Example
 
 ```ts
-const ds = await (await paidFetch("https://your-domain.com/api/v1/datasets", {
+const ds = await (await paidFetch("https://your-domain.com/api/arc/v1/datasets", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ prompt: "Specialty coffee shops in Oakland with their website and rating", target_rows: 25 }),
@@ -45,9 +45,9 @@ const ds = await (await paidFetch("https://your-domain.com/api/v1/datasets", {
   "target_rows": 25,
   "row_count": 0,
   "run": { "id": "7f2a…", "status": "queued" },
-  "poll_url": "/api/v1/datasets/1b6c…",
-  "rows_url": "/api/v1/datasets/1b6c…/rows",
-  "events_url": "/api/v1/datasets/1b6c…/events?run=7f2a…"
+  "poll_url": "/api/arc/v1/datasets/1b6c…",
+  "rows_url": "/api/arc/v1/datasets/1b6c…/rows",
+  "events_url": "/api/arc/v1/datasets/1b6c…/events?run=7f2a…"
 }
 ```
 
@@ -55,6 +55,6 @@ const ds = await (await paidFetch("https://your-domain.com/api/v1/datasets", {
 
 | Endpoint | |
 | --- | --- |
-| `GET /api/v1/datasets/{id}` | `status`: `populating`, `ready`, `empty`, `failed` or `cancelled` |
-| `GET /api/v1/datasets/{id}/events?run={runId}` | SSE: `status`, `row` (`{ row_id, data }`), `log`, then `done`. Connections close after 5 minutes, so reconnect until `done`. |
-| `GET /api/v1/datasets/{id}/rows?after={cursor}` | One page of rows, with cells keyed by column name. Pass `next_cursor` as `after`. |
+| `GET /api/arc/v1/datasets/{id}` | `status`: `populating`, `ready`, `empty`, `failed` or `cancelled` |
+| `GET /api/arc/v1/datasets/{id}/events?run={runId}` | SSE: `status`, `row` (`{ row_id, data }`), `log`, then `done`. Connections close after 5 minutes, so reconnect until `done`. |
+| `GET /api/arc/v1/datasets/{id}/rows?after={cursor}` | One page of rows, with cells keyed by column name. Pass `next_cursor` as `after`. |

@@ -14,19 +14,32 @@ async function main() {
   // Prices: exact base units from the spec.
   assert.deepEqual(PRICES, { search: "10000", fetch: "15000", agent: "50000", research: "200000", browser: "30000", datasets: "20000" });
 
-  // Route config: one accepts option per advertised chain, each with that chain's own asset
-  // and EIP-712 domain. A shared `extra` across chains is the bug this guards.
-  const { CHAINS, NETWORKS, MIN_PAYMENT } = await import("../lib/chains");
-  const { ADVERTISED } = await import("../lib/x402");
-  const cfg = paid("search", "t");
-  const opts = Array.isArray(cfg.accepts) ? cfg.accepts : [cfg.accepts];
-  assert.equal(opts.length, ADVERTISED.length, "one accepts option per advertised network");
-  assert.deepEqual(opts.map((o) => o.network), ADVERTISED);
-  for (const o of opts) {
-    const c = CHAINS[o.network as keyof typeof CHAINS];
-    assert.equal(o.scheme, "exact");
-    assert.deepEqual(o.price, { asset: c.asset.address, amount: "10000", extra: c.asset.extra });
+  // Route config: the chain comes from the URL, so each route quotes EXACTLY ONE asset — its
+  // own. Quoting a chain the caller did not ask for is the bug this guards.
+  const { CHAINS, NETWORKS, MIN_PAYMENT, apiPath, networkOfSlug } = await import("../lib/chains");
+  const { ADVERTISED } = await import("../lib/chain-guard");
+  for (const n of ADVERTISED) {
+    const cfg = paid("search", "t", n);
+    const opts = Array.isArray(cfg.accepts) ? cfg.accepts : [cfg.accepts];
+    assert.equal(opts.length, 1, `${n} must quote exactly one asset`);
+    assert.equal(opts[0].network, n);
+    assert.equal(opts[0].scheme, "exact");
+    assert.deepEqual(opts[0].price, { asset: CHAINS[n].asset.address, amount: "10000", extra: CHAINS[n].asset.extra });
   }
+
+  // Slug <-> network round trip, and the composed public path.
+  for (const n of NETWORKS) assert.equal(networkOfSlug(CHAINS[n].slug), n);
+  assert.equal(networkOfSlug("nope"), undefined);
+
+  // isNetwork is the allowlist /api/wallet/sign builds its EIP-712 domain from, so it must not
+  // accept inherited keys. `n in CHAINS` used to let these through and then crash on CHAINS[n].
+  const { isNetwork } = await import("../lib/chains");
+  for (const n of NETWORKS) assert.ok(isNetwork(n));
+  for (const bad of ["toString", "constructor", "__proto__", "hasOwnProperty", "valueOf", "", "eip155:9"]) {
+    assert.equal(isNetwork(bad), false, `isNetwork accepted ${JSON.stringify(bad)}`);
+  }
+  assert.equal(apiPath("eip155:5042002", "/v1/search"), "/api/arc/v1/search");
+  assert.equal(apiPath("eip155:1874", "/v1/search"), "/api/whitechain/v1/search");
 
   // Arc's USDC entry must match the x402 SDK's own table, or signatures verify to nobody.
   const { getDefaultAsset } = await import("@x402/evm");
@@ -64,7 +77,7 @@ async function main() {
   assert.equal(quote("datasets", {}), "200000"); // default 10 rows
   assert.equal(quote("datasets", { target_rows: 9999 }), "5000000"); // clamped to 250
   assert.equal(quote("datasets", { target_rows: -3 }), "20000");
-  const r = paid("research", "t");
+  const r = paid("research", "t", ADVERTISED[0]);
   const ra = Array.isArray(r.accepts) ? r.accepts[0] : r.accepts;
   assert.equal(typeof ra.price, "function");
 
@@ -94,7 +107,7 @@ async function main() {
   }
   const s1 = buildRequest("search", { query: " x402 ", location: "us", page: "", include_thumbnail: true });
   assert.ok(!("error" in s1));
-  assert.equal(s1.url, "/api/v1/search?query=x402&location=US&include_thumbnail=true"); // blank page omitted
+  assert.equal(s1.url, "/v1/search?query=x402&location=US&include_thumbnail=true"); // suffix; caller adds the chain prefix
   const a1 = buildRequest("agent", { url: "x.com", goal: "g", "agent_config.max_steps": "12", "proxy_config.country_code": "de" });
   assert.ok(!("error" in a1));
   assert.deepEqual(a1.body, { url: "x.com", goal: "g", agent_config: { max_steps: 12 }, proxy_config: { country_code: "DE", enabled: true } });
@@ -179,13 +192,39 @@ async function main() {
   assert.match(w.walletErrorHint("WALLET_ENCRYPTION_KEY must be 32 bytes, base64"), /WALLET_ENCRYPTION_KEY/);
   assert.match(w.walletErrorHint("ECONNREFUSED"), /server logs/);
 
+  // Every URL a handler hands back must be composed with apiPath. Production once renamed the
+  // routes but kept `poll_url: `/api/v1/research/${id}``, so every paid research/dataset/browser
+  // call returned a 404 link. A static check, because reproducing it needs a real payment.
+  const { readdirSync, readFileSync, statSync } = await import("node:fs");
+  const walk = (dir: string): string[] =>
+    readdirSync(dir).flatMap((f) => {
+      const full = `${dir}/${f}`;
+      return statSync(full).isDirectory() ? walk(full) : full.endsWith("route.ts") ? [full] : [];
+    });
+  const routeFiles = walk("app/api");
+  assert.ok(routeFiles.length >= 13, `expected the route tree, found ${routeFiles.length} files`);
+  for (const f of routeFiles) {
+    const src = readFileSync(f, "utf8");
+    for (const line of src.split("\n")) {
+      if (!/_url(_|\b)|_url:/.test(line) || line.trimStart().startsWith("//") || line.includes("cdp_url") || line.includes("base_url")) continue;
+      if (!/_url(s)?\s*[:=]/.test(line)) continue;
+      if (line.includes("apiPath(")) continue; // composed from the registry, which is the point
+      // Otherwise a literal API path is being handed out, and it will not carry the chain.
+      if (/["`]\/(api|v1)\//.test(line)) {
+        assert.fail(`${f}: hands out a hardcoded API path, use apiPath(): ${line.trim()}`);
+      }
+    }
+    // And no route may name the retired prefix at all.
+    assert.ok(!src.includes("/api/v1/") || f.includes("[...path]"), `${f} still references /api/v1/`);
+  }
+
   // Proxy matcher: every page runs the OAuth verifier exchange, /api/* stays out of it.
   const { config: proxy } = await import("../proxy");
   const matched = (p: string) => new RegExp(`^${proxy.matcher[0]}$`).test(p);
   for (const p of ["/", "/playground", "/docs", "/docs/api/search", "/dashboard", "/llms.txt", "/apikeys"]) {
     assert.ok(matched(p), `${p} skips the proxy, so Google sign-in from it would not set a session`);
   }
-  for (const p of ["/api/v1/search", "/api/wallet", "/_next/static/chunk.js"]) {
+  for (const p of ["/api/arc/v1/search", "/api/whitechain/v1/search", "/api/wallet", "/_next/static/chunk.js"]) {
     assert.ok(!matched(p), `${p} should not pay for a session round-trip`);
   }
 
@@ -199,19 +238,54 @@ async function main() {
     const kinds = (await Promise.all(facilitators.map((f) => f.getSupported()))).flatMap((s) => s.kinds);
     for (const n of ADVERTISED)
       assert.ok(kinds.some((k) => k.scheme === "exact" && k.network === n), `no facilitator serves exact/${n}`);
-    const r = await fetch(`${live}/api/v1/search?query=x402`);
-    assert.equal(r.status, 402);
-    const req = decodePaymentRequiredHeader(r.headers.get("payment-required") ?? "");
-    assert.equal(req.x402Version, 2);
-    assert.deepEqual(req.accepts.map((o: { network: string }) => o.network), ADVERTISED, "402 must offer every chain");
-    for (const acc of req.accepts) {
-      const c = CHAINS[acc.network as keyof typeof CHAINS];
+    // The regression that started this: each chain's own path must quote ONLY that chain.
+    // Previously one path quoted whatever the server felt like and a client set to Arc got USDT.
+    let acc!: { network: string; asset: string; payTo: string; extra: unknown };
+    let lastReq!: { extensions?: { bazaar?: unknown } };
+    for (const n of ADVERTISED) {
+      const u: string = `${live}${apiPath(n, "/v1/search")}?query=x402`;
+      const res402: Response = await fetch(u);
+      assert.equal(res402.status, 402, `${u} should be 402`);
+      const pr = decodePaymentRequiredHeader(res402.headers.get("payment-required") ?? "");
+      assert.equal(pr.x402Version, 2);
+      assert.equal(pr.accepts.length, 1, `${u} must quote exactly one chain`);
+      lastReq = pr;
+      acc = pr.accepts[0];
+      const c = CHAINS[n];
+      assert.equal(acc.network, n, `${u} quoted ${acc.network}`);
       assert.equal(acc.asset.toLowerCase(), c.asset.address.toLowerCase());
-      assert.deepEqual(acc.extra, c.asset.extra, `${acc.network} advertises the wrong EIP-712 domain`);
+      assert.deepEqual(acc.extra, c.asset.extra, `${n} advertises the wrong EIP-712 domain`);
       assert.match(acc.payTo, /^0x[0-9a-fA-F]{40}$/);
     }
-    const acc = req.accepts[0];
-    const bz = (req.extensions?.bazaar ?? {}) as { info?: { input?: { method?: string; queryParams?: unknown } } };
+    // The pre-multi-chain path is gone and must say so rather than quoting a chain.
+    const gone = await fetch(`${live}/api/v1/search?query=x402`);
+    assert.equal(gone.status, 410, "/api/v1/* must answer Gone, not quote a chain");
+    const goneBody = await gone.json();
+    assert.equal(goneBody.error, "endpoint_moved");
+    assert.deepEqual(goneBody.paths, ADVERTISED.map((n) => apiPath(n, "/v1/search")));
+    const bogus = await fetch(`${live}/api/nope/v1/search?query=x402`);
+    assert.equal(bogus.status, 404);
+    // Free follow-ups must reject a bogus chain too, or every resource gains unlimited aliases.
+    // browser/[id] only accepts DELETE; the wrong verb would 405 before the chain guard runs.
+    const freeRoutes: [string, string][] = [
+      ["GET", "/v1/research/res_x"],
+      ["GET", "/v1/research/res_x/events"],
+      ["GET", "/v1/datasets/ds_x"],
+      ["GET", "/v1/datasets/ds_x/rows"],
+      ["DELETE", "/v1/browser/b_x"],
+    ];
+    for (const [method, u] of freeRoutes) {
+      const r: Response = await fetch(`${live}/api/nope${u}`, { method });
+      assert.equal(r.status, 404, `/api/nope${u} must 404 on an unknown chain`);
+      assert.equal((await r.json()).error, "unknown_chain", `/api/nope${u} reached upstream`);
+    }
+    // operationId is unique per document, and each endpoint now appears once per chain.
+    const spec = await (await fetch(`${live}/api/openapi`)).json();
+    const ids = Object.values(spec.paths as Record<string, Record<string, { operationId?: string }>>)
+      .flatMap((ops) => Object.values(ops).map((o) => o.operationId))
+      .filter(Boolean);
+    assert.equal(new Set(ids).size, ids.length, `duplicate operationIds: ${ids.filter((x, i) => ids.indexOf(x) !== i).join(",")}`);
+    const bz = (lastReq.extensions?.bazaar ?? {}) as { info?: { input?: { method?: string; queryParams?: unknown } } };
     assert.equal(bz.info?.input?.method, "GET", "402 lacks enriched bazaar extension");
     console.log(`live x402 ok: facilitator + 402 from ${live} (payTo ${acc.payTo})`);
   }
