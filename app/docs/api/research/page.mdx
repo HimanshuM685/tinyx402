@@ -14,14 +14,14 @@ Research takes **5–45 minutes**, which is longer than an HTTP request can stay
 
 ## Body
 
-| Field | Type | |
+| Field | Type | Notes |
 | --- | --- | --- |
 | `query` | string | **Required.** 1–2000 chars. |
 | `mode` | `deep` \| `max` | Default `deep` (5–20 min). `max` takes 5–45 min. |
 | `output_language` | string | BCP 47, e.g. `en`, `ja`, `pt-BR`. |
 | `stream` | boolean | Emit report text as `synthesis_delta` events. |
 | `weak_sources_enabled` | boolean | Allow relevant social and community sources. |
-| `domain_type` | `web` \| `news` \| `research_paper` | |
+| `domain_type` | `web` \| `news` \| `research_paper` | Source mix to draw from. Defaults to `web`. |
 | `after_date` / `before_date` / `recency_minutes` | | Same rules as Search. |
 | `domain_filter` | `{ mode: "include" \| "exclusive", domains?, block? }` | Up to 150 entries each. |
 

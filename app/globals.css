@@ -98,6 +98,19 @@ body {
 .prose-doc table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 1rem 0; }
 .prose-doc th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
 .prose-doc th, .prose-doc td { border-bottom: 1px solid var(--line); padding: 0.55rem 0.75rem 0.55rem 0; vertical-align: top; }
+/* Reference tables are name | type | notes. Without this the notes column loses the width
+   fight and type unions like `markdown | html | json` wrap in the middle of the union.
+   Scoped to .md-table so component-built tables keep their own layout. */
+@media (min-width: 640px) {
+  .prose-doc .md-table :is(th, td):first-child { width: 1%; white-space: nowrap; }
+  .prose-doc .md-table :is(th, td):nth-child(2) { width: 1%; }
+  .prose-doc .md-table td:nth-child(2) { white-space: nowrap; }
+  /* A cell listing several slash-separated names is where wrapping is wanted back. */
+  .prose-doc .md-table td:first-child:has(code + code) { white-space: normal; }
+}
+/* Narrow screens keep wrapping instead: holding the columns open there would only add
+   horizontal scrolling to a table that used to fit. */
+.prose-doc .md-table code { white-space: nowrap; }
 .prose-doc hr { border: 0; border-top: 1px solid var(--line); margin: 2rem 0; }
 .prose-doc blockquote { border-left: 2px solid var(--accent); padding-left: 1rem; color: var(--muted); }
 .prose-doc strong { font-weight: 620; }

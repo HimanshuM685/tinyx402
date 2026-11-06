@@ -87,7 +87,10 @@ export function Networks() {
       <table className="w-full min-w-[520px] text-sm">
         <thead>
           <tr className="border-b border-line text-left">
-            <th className="py-2 pr-4 font-medium text-muted" />
+            {/* Corner of a comparison matrix: blank by design, but a screen reader needs a name. */}
+            <th className="py-2 pr-4 font-medium text-muted">
+              <span className="sr-only">Property</span>
+            </th>
             {NETWORKS.map((n) => (
               <th key={n} className="py-2 pr-4 font-medium">
                 {CHAINS[n].label}
@@ -157,7 +160,9 @@ const components: MDXComponents = {
     }
     return <pre>{children}</pre>;
   },
-  table: (p) => <div className="overflow-x-auto"><table {...p} /></div>,
+  // `md-table` scopes the column sizing in globals.css to markdown tables only — components
+  // that build their own table markup must not inherit it (`not-prose` is inert in this app).
+  table: (p) => <div className="overflow-x-auto"><table className="md-table" {...p} /></div>,
   Price,
   Endpoint,
   Networks,

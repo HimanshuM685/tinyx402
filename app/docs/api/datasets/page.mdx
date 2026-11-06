@@ -10,7 +10,7 @@ Describe a dataset in one sentence. TinySet designs the columns, finds matching 
 
 ## Body
 
-| Field | Type | |
+| Field | Type | Notes |
 | --- | --- | --- |
 | `prompt` | string | What the dataset should contain. Up to 15,000 chars. |
 | `spec` | object | Or send an explicit schema: `{ name, description, columns[], keep_when? }`. |
@@ -53,7 +53,7 @@ const ds = await (await paidFetch("https://your-domain.com/api/arc/v1/datasets",
 
 ## Follow the fill (free)
 
-| Endpoint | |
+| Endpoint | What it does |
 | --- | --- |
 | `GET /api/arc/v1/datasets/{id}` | `status`: `populating`, `ready`, `empty`, `failed` or `cancelled` |
 | `GET /api/arc/v1/datasets/{id}/events?run={runId}` | SSE: `status`, `row` (`{ row_id, data }`), `log`, then `done`. Connections close after 5 minutes, so reconnect until `done`. |
