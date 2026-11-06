@@ -1,12 +1,11 @@
 "use client";
 import { useMemo, useRef, useState } from "react";
 import { useAccount, useReadContract, useSwitchChain, useWalletClient, useBalance } from "wagmi";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { ENDPOINTS, quote } from "@/lib/pricing";
 import { USDT, whitechainSepolia, explorerTx, formatUsdt } from "@/lib/chains";
 import { erc20Abi } from "@/lib/wagmi";
 import { createPaidFetch, walletSigner, platformSigner, readSettlement, saveRun, type PayEvent, type Settlement } from "@/lib/pay-client";
-import { usePlatformWallet, GoogleButton } from "@/components/account";
+import { usePlatformWallet, GetStarted } from "@/components/account";
 import { CopyButton } from "@/components/copy-button";
 import { readSse } from "@/lib/sse";
 import { FIELDS, DEFAULTS, NOTES, buildRequest, type Id, type Form, type Value, type FieldSpec } from "@/lib/playground";
@@ -244,11 +243,10 @@ export function Playground() {
         </div>
 
         {!signer ? (
-          <div className="flex flex-wrap items-center justify-center gap-3 rounded-xl border border-dashed border-line p-4">
-            <ConnectButton label="Connect wallet to run" />
-            <span className="text-xs text-muted">or</span>
-            <GoogleButton compact />
-          </div>
+          <GetStarted
+            label="Get started to run"
+            className="rounded-lg bg-accent px-4 py-3 text-sm font-medium text-accent-ink hover:opacity-90"
+          />
         ) : wrongChain ? (
           <button onClick={() => switchChain({ chainId: whitechainSepolia.id })} className="rounded-lg bg-warn px-4 py-3 text-sm font-medium text-black">
             Switch to Whitechain Sepolia
