@@ -48,8 +48,17 @@ async function main() {
     if (h) console.error("settlement:", decodePaymentResponseHeader(h));
     // Research / Datasets keep running; follow the free event stream.
     if (res.ok && body.events_url) {
-      const ev = await fetch(`${BASE}${body.events_url}`);
-      if (ev.body) for await (const e of readSse(ev.body)) console.log((e.data as { event?: string })?.event ?? e.event, JSON.stringify(e.data).slice(0, 300));
+      // Each stream request lives at most 5 min on Vercel; reconnect until `done`.
+      let finished = false;
+      for (let attempt = 0; attempt < 12 && !finished; attempt++) {
+        const ev = await fetch(`${BASE}${body.events_url}`);
+        if (!ev.ok || !ev.body) break;
+        for await (const e of readSse(ev.body)) {
+          const name = (e.data as { event?: string })?.event ?? e.event;
+          if (name === "done") finished = true;
+          if (name !== "heartbeat") console.log(name, JSON.stringify(e.data).slice(0, 300));
+        }
+      }
       if (body.rows_url) console.log(JSON.stringify(await (await fetch(`${BASE}${body.rows_url}`)).json(), null, 2));
     }
   }

@@ -16,7 +16,7 @@ Give a start URL and a goal in plain language. A TinyFish web agent operates a r
 | `browser_profile` | `lite` \| `stealth` | `stealth` uses an anti-detection browser. |
 | `agent_config.mode` | `default` \| `strict` | `strict` fails fast. |
 | `agent_config.max_steps` | integer | 1–500. |
-| `agent_config.max_duration_seconds` | integer | Capped at 780 so the run fits inside one request. |
+| `agent_config.max_duration_seconds` | integer | Capped at 280 seconds so the run fits inside one request. Use `strict` mode or fewer steps for long tasks. |
 | `proxy_config` | `{ enabled, country_code? }` | Route the run through a country. |
 
 Vault credentials, browser profiles and webhooks are scoped to the operator's account, so they are not exposed. Unknown fields are dropped.

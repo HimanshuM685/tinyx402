@@ -169,15 +169,20 @@ export function Playground() {
       const eventsUrl = (body as { events_url?: string } | null)?.events_url;
       if (status < 400 && eventsUrl && form.follow) {
         const evs: { event: string; data: unknown }[] = [];
-        const r = await fetch(eventsUrl, { signal: abort.signal });
-        if (r.ok && r.body)
+        // Each stream request lives at most 5 min on Vercel; reconnect until the run finishes (~1h max).
+        let finished = false;
+        for (let attempt = 0; attempt < 12 && !finished && !abort.signal.aborted; attempt++) {
+          const r = await fetch(eventsUrl, { signal: abort.signal }).catch(() => null);
+          if (!r?.ok || !r.body) break;
           for await (const ev of readSse(r.body)) {
             const name = (ev.data as { event?: string })?.event ?? ev.event;
             if (name === "heartbeat") continue;
             evs.push({ event: name, data: ev.data });
             setEvents([...evs]);
             if (name === "final_result") setResult({ status, body: ev.data });
+            if (name === "done") finished = true;
           }
+        }
         const rowsUrl = (body as { rows_url?: string }).rows_url;
         if (rowsUrl) setResult({ status, body: await (await fetch(rowsUrl)).json() });
       }

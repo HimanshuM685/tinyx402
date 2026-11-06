@@ -39,7 +39,7 @@ Research takes **5–45 minutes**, which is longer than an HTTP request can stay
 
 ## Follow the run (free)
 
-**Live events**: `GET /api/v1/research/{id}/events` (SSE). Events include `created`, `plan_updated`, `sources_searched`, `source_fetched`, `partial_summary`, `synthesis_delta`, `final_result` (report, citations, termination reason), `run_stats`, `error` and `done`. Reconnect with `Last-Event-ID`. Disconnecting does not cancel the run.
+**Live events**: `GET /api/v1/research/{id}/events` (SSE). Events include `created`, `plan_updated`, `sources_searched`, `source_fetched`, `partial_summary`, `synthesis_delta`, `final_result` (report, citations, termination reason), `run_stats`, `error` and `done`. Each stream connection closes after 5 minutes. Reconnect (optionally with `Last-Event-ID`) until you see `done`. Disconnecting does not cancel the run.
 
 ```ts
 const run = await (await paidFetch(".../api/v1/research", { method: "POST", headers, body })).json();

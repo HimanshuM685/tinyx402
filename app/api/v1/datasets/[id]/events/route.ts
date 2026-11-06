@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { TF, proxySse, safeId } from "@/lib/tinyfish";
 
 export const runtime = "nodejs";
-export const maxDuration = 800;
+export const maxDuration = 300; // Vercel Hobby max; streams reconnect (Last-Event-ID)
 
 // Free: follow a fill run. status / row / log frames, then done.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

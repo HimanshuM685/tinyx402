@@ -5,7 +5,7 @@ import { TF, tfJson, upstreamFailure } from "@/lib/tinyfish";
 import { agentPayload } from "@/lib/agent";
 
 export const runtime = "nodejs";
-export const maxDuration = 800;
+export const maxDuration = 300; // Vercel Hobby max
 
 type RunResult = { run_id: string | null; status: "COMPLETED" | "FAILED"; result: unknown; error: unknown };
 
@@ -16,7 +16,7 @@ export const POST = paidRoute("agent", "Goal-based browser automation", async (r
     const out = await tfJson<RunResult>(`${TF.agent}/v1/automation/run`, {
       method: "POST",
       body: JSON.stringify(agentPayload(p.data)),
-      timeoutMs: 795_000,
+      timeoutMs: 295_000,
     });
     // A FAILED run is not charged.
     if (out.status !== "COMPLETED") return NextResponse.json({ ...out, charged: false }, { status: 502 });

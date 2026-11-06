@@ -110,7 +110,7 @@ PRIVATE_KEY=0x… python examples/python/pay.py "x402"    # pip install "x402[re
 ## Deploying to Vercel
 
 1. Import the repo, set the env vars from `.env.example`, and set `NEXT_PUBLIC_SITE_URL` to your domain.
-2. `agent/run`, `agent/run-sse` and the free `/events` streams set `maxDuration = 800` (Fluid compute). Agent runs are capped at 780 s through `agent_config.max_duration_seconds`.
+2. Works on the **Hobby** plan. No function runs longer than 300 s: agent runs are capped at 280 s (`agent_config.max_duration_seconds`), and the free `/events` streams close after 5 minutes. The playground and `pnpm pay` reconnect automatically. Research and Datasets keep running on TinyFish regardless.
 3. Optional: add Postgres (Neon or Supabase), set `DATABASE_URL`, and run `pnpm db:push` once.
 
 The app is plain Node with no browser binaries, so any host works (`pnpm build && pnpm start`).

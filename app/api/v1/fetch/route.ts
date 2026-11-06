@@ -12,7 +12,7 @@ export const POST = paidRoute("fetch", "Clean content extraction from up to 10 U
   const p = FetchBody.safeParse(await req.json().catch(() => null));
   if (!p.success) return badRequest("Invalid body", issues(p.error));
   try {
-    const out = await tfJson<FetchResult>(TF.fetch, { method: "POST", body: JSON.stringify(p.data), timeoutMs: 280_000 });
+    const out = await tfJson<FetchResult>(TF.fetch, { method: "POST", body: JSON.stringify(p.data), timeoutMs: 285_000 });
     // Per-URL failures come back in errors[]; charge only if at least one URL succeeded.
     if (!out.results?.length) return NextResponse.json({ ...out, error: "all_failed", charged: false }, { status: 502 });
     return NextResponse.json(out);

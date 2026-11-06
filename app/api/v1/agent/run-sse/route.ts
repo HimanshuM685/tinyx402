@@ -4,7 +4,7 @@ import { TF, tf } from "@/lib/tinyfish";
 import { agentPayload, relayAgent } from "@/lib/agent";
 
 export const runtime = "nodejs";
-export const maxDuration = 800;
+export const maxDuration = 300; // Vercel Hobby max
 
 export const POST = paidStream(
   "agent",

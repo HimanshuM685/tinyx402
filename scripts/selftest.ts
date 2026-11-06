@@ -53,7 +53,7 @@ async function main() {
   // Account-scoped TinyFish fields are stripped; agent runs are capped under our function limit.
   const ag = AgentBody.parse({ url: "x.com", goal: "g", use_vault: true, profile_id: "p", agent_config: { max_steps: 10 } });
   assert.equal("use_vault" in ag || "profile_id" in ag, false);
-  assert.equal(agentPayload(ag).agent_config.max_duration_seconds, 780);
+  assert.equal(agentPayload(ag).agent_config.max_duration_seconds, 280);
   assert.equal("prior_run_id" in ResearchBody.parse({ query: "q", prior_run_id: "x", session_id: "y" }), false);
   assert.equal(DatasetBody.safeParse({ target_rows: 5 }).success, false); // needs prompt or spec
   assert.equal(DatasetBody.parse({ prompt: "cafes in Oakland" }).target_rows, 10);

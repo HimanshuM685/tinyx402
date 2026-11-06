@@ -56,5 +56,5 @@ const ds = await (await paidFetch("https://your-domain.com/api/v1/datasets", {
 | Endpoint | |
 | --- | --- |
 | `GET /api/v1/datasets/{id}` | `status`: `populating`, `ready`, `empty`, `failed` or `cancelled` |
-| `GET /api/v1/datasets/{id}/events?run={runId}` | SSE: `status`, `row` (`{ row_id, data }`), `log`, then `done` |
+| `GET /api/v1/datasets/{id}/events?run={runId}` | SSE: `status`, `row` (`{ row_id, data }`), `log`, then `done`. Connections close after 5 minutes, so reconnect until `done`. |
 | `GET /api/v1/datasets/{id}/rows?after={cursor}` | One page of rows, with cells keyed by column name. Pass `next_cursor` as `after`. |

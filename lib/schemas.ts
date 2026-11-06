@@ -50,7 +50,7 @@ export const AgentBody = z.object({
     .object({
       mode: z.enum(["default", "strict"]).optional(),
       max_steps: z.number().int().min(1).max(500).optional(),
-      max_duration_seconds: z.number().int().min(1).max(780).optional(),
+      max_duration_seconds: z.number().int().min(1).max(280).optional(),
     })
     .optional(),
   proxy_config: z.object({ enabled: z.boolean(), country_code: z.string().length(2).optional() }).optional(),
