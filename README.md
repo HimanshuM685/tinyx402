@@ -1,13 +1,13 @@
 # tinyx402
 
-[TinyFish](https://tinyfish.ai) web APIs (Search, Fetch, Agent, Research, Datasets and remote Browser sessions) resold **per request** for USDT on Whitechain through the [x402](https://x402.org) protocol. Callers need no API keys, accounts or billing, because the payment is the credential. The operator's single `TINYFISH_API_KEY` stays on the server.
+[TinyFish](https://tinyfish.ai) web APIs (Search, Fetch, Agent, Research, Datasets and remote Browser sessions) resold **per request** for stablecoins on [two chains](#chains) through the [x402](https://x402.org) protocol. Callers need no API keys, accounts or billing, because the payment is the credential. The operator's single `TINYFISH_API_KEY` stays on the server.
 
-- **API**: `/api/v1/*`. Every route is protected by x402 v2 and settled through the Whitechain facilitator `https://whitechain.007575.xyz`.
+- **API**: `/api/v1/*`. Every route is protected by x402 v2. Each `402` advertises one `accepts` entry per chain, and the caller pays with whichever asset they hold.
 - **Playground** (`/playground`): connect a wallet, run any endpoint, and watch the 402, signature, retry and settlement as they happen.
 - **Dashboard** (`/dashboard`): run and payment history, built from `PAYMENT-RESPONSE` receipts plus Postgres when configured.
 - **Docs** (`/docs`): quick start, x402 explainer, API reference, and TypeScript, Python and curl examples. Also `/api/openapi` and `/llms.txt`.
 
-| Endpoint | Method | Price (USDT) |
+| Endpoint | Method | Price |
 | --- | --- | --- |
 | `/api/v1/search` | GET | 0.01 (`10000`) |
 | `/api/v1/fetch` | POST | 0.015 (`15000`) |
@@ -49,16 +49,25 @@ Check that the server is gated:
 curl -i "localhost:3000/api/v1/search?query=x402"     # 402 + PAYMENT-REQUIRED header
 ```
 
-## Testnet funds (Whitechain Sepolia, chain 1874)
+## Chains
 
-| | |
-| --- | --- |
-| RPC | `https://rpc.testnet.whitechain.io` |
-| Explorer | https://explorer.testnet.whitechain.io |
-| WBT faucet | https://faucet.testnet.whitechain.io (gas only; payers don't need it) |
-| USDT | `0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7` (6 decimals, EIP-712 `Tether USD` v1) |
+Every `402` lists one `accepts` entry per chain. Prices are the same number of base units on both, because both assets use 6 decimals.
 
-Payers need **test USDT only**. Payments are EIP-3009 signatures, and the facilitator pays the gas. The test token's `mint` is owner-only, so ask the facilitator or token operator for an allocation, or have a holder transfer you some.
+| | Arc Testnet | Whitechain Sepolia |
+| --- | --- | --- |
+| CAIP-2 | `eip155:5042002` | `eip155:1874` |
+| Asset | USDC `0x3600000000000000000000000000000000000000` | USDT `0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7` |
+| EIP-712 domain | `{ name: "USDC", version: "2" }` | `{ name: "Tether USD", version: "1" }` |
+| RPC | `https://rpc.testnet.arc.io` | `https://rpc.testnet.whitechain.io` |
+| Explorer | https://explorer.testnet.arc.io | https://explorer.testnet.whitechain.io |
+| Facilitator | `https://arc.007575.xyz` | `https://whitechain.007575.xyz` |
+| Test funds | https://faucet.circle.com | owner-only `mint`; ask the operator |
+
+Payers need **the stablecoin only** — payments are EIP-3009 signatures and the facilitator pays the gas. On Arc that gas is USDC too, so there is no second token anywhere in the flow.
+
+Note the EIP-712 `version` differs per chain. Take `extra` from the `accepts` entry you chose; a wrong domain recovers to a different address and fails verification with no transaction to inspect.
+
+Arc mainnet (`eip155:5042`) is intentionally not advertised: that facilitator ships with mainnet settlement off, so `/settle` returns `503 mainnet_disabled`.
 
 ## Paying from code
 
@@ -69,11 +78,12 @@ import { privateKeyToAccount } from "viem/accounts";
 
 const account = privateKeyToAccount(process.env.PRIVATE_KEY);
 const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
-  schemes: [{ network: "eip155:1874", client: new ExactEvmScheme(account) }],
+  // Register the chain you hold funds on.
+  schemes: [{ network: "eip155:5042002", client: new ExactEvmScheme(account) }],
   spendControls: {
     allowedAssets: [{
-      network: "eip155:1874",
-      asset: "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
+      network: "eip155:5042002",
+      asset: "0x3600000000000000000000000000000000000000", // Arc Testnet USDC
       maxAmountPerPayment: "100000",
     }],
   },
@@ -95,20 +105,24 @@ PRIVATE_KEY=0x… python examples/python/pay.py "x402"    # pip install "x402[re
 
 Payments are standard x402 v2 with a facilitator, not direct transfers. The server never sends a transaction and the client only signs. `withX402` (the x402 middleware) gates each route, and the facilitator at `FACILITATOR_URL` verifies and settles. For a step-by-step map, see [How x402 payments work: where it lives in the code](/docs/how-x402-works#where-it-lives-in-the-code).
 
-- `lib/x402.ts` registers `ExactEvmScheme` for `eip155:1874` on an `x402ResourceServer` backed by `HTTPFacilitatorClient`. `paid(product)` builds each route config with the explicit price shape:
+- `lib/x402.ts` registers `ExactEvmScheme` for **each** advertised network on one `x402ResourceServer`, backed by **one `HTTPFacilitatorClient` per chain**. The SDK reads `/supported` from each and routes verify/settle by the network inside the payment payload, so there is no dispatch code of our own. `paid(product)` returns one option per chain:
 
   ```ts
-  price: {
-    asset: "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7", // Whitechain Sepolia USDT
-    amount: "10000",
-    extra: { name: "Tether USD", version: "1" },
-  }
+  accepts: ADVERTISED.map((n) => ({
+    scheme: "exact",
+    network: n,
+    payTo,
+    price: { asset: CHAINS[n].asset.address, amount: "10000", extra: CHAINS[n].asset.extra },
+  }))
   ```
+
+  `extra` must come from the registry per chain. A shared literal is how one chain's signatures
+  silently stop verifying.
 
 - `paidRoute()` wraps `withX402` from `@x402/next`, which settles only after a response with a status below 400. It adds rate limiting and the run log on top. Every route validates its input with zod, forwards it to TinyFish (`lib/tinyfish.ts`) with the operator key, and maps any upstream failure to a status of 400 or higher, so nothing is settled.
 - Research and Datasets use a **dynamic x402 price** computed from the request body (`quote()` in `lib/pricing.ts`), for `mode` and `target_rows` respectively.
 - `paidStream()` handles `/agent/run-sse`. `withX402` buffers the whole body before settling, so the server verifies first, opens the TinyFish stream, relays events, settles only on `COMPLETE`/`COMPLETED`, and sends the receipt as a final `payment` event.
-- Prices live only in `lib/pricing.ts`. Network and asset constants live only in `lib/chains.ts`, which is the place to add mainnet (`eip155:1875`) later.
+- Prices live only in `lib/pricing.ts`. Every chain, asset and facilitator lives only in `lib/chains.ts` (`CHAINS`), which is where a new chain is added — nothing else names one. `X402_NETWORKS` narrows which are advertised; unset means all of them.
 
 ## Deploying to Vercel
 
@@ -129,7 +143,7 @@ Google sign-in uses [Neon's managed Better Auth](https://neon.com/docs/auth/over
 - `lib/auth/server.ts` and `app/api/auth/[...path]`: Neon Auth. It's disabled cleanly when `NEON_AUTH_BASE_URL` isn't set.
 - `proxy.ts`: required. Google returns to `?neon_auth_session_verifier=…`, and only the middleware exchanges that verifier for the session cookie. Every page is public, so it skips `auth.middleware()` (route protection) and calls `processAuthMiddleware` directly: exchange, refresh, never redirect. Nothing to keep in sync when you add a page. `/api/*` is outside the matcher, which `pnpm selftest` asserts.
 - `GET /api/wallet` creates the user's wallet on first sign-in (`lib/wallet.ts`). The private key is generated server-side and stored in `wallets`, encrypted with AES-256-GCM under `WALLET_ENCRYPTION_KEY`, with the user id as AAD.
-- `POST /api/wallet/sign` signs one EIP-3009 authorization. The server builds the domain and types itself (USDT, chain 1874), and `checkAuthorization()` only allows payments `to` our `PAY_TO_ADDRESS`, up to `PLATFORM_WALLET_MAX_PER_PAYMENT`, valid for at most 1 h. The playground uses it as an ordinary x402 signer (`platformSigner` in `lib/pay-client.ts`).
+- `POST /api/wallet/sign` signs one EIP-3009 authorization. The request names only the CAIP-2 `network`; the server rebuilds every EIP-712 domain field from `CHAINS`, so a caller can pick an allowlisted chain but can never make us sign one chain's payment under another chain's token. `checkAuthorization()` rejects an unknown network and only allows payments `to` our `PAY_TO_ADDRESS`, up to `PLATFORM_WALLET_MAX_PER_PAYMENT`, valid for at most 1 h. The playground uses it as an ordinary x402 signer (`platformSigner` in `lib/pay-client.ts`).
 - Google OAuth works in development with Neon's shared credentials. For production, add your own Google client in Neon Console → Auth, and add your site to trusted domains.
 
 ## Security notes
@@ -146,10 +160,10 @@ Google sign-in uses [Neon's managed Better Auth](https://neon.com/docs/auth/over
 | --- | --- |
 | `pnpm dev` / `build` / `start` | Next.js |
 | `pnpm lint` / `typecheck` | |
-| `pnpm selftest` | asserts on prices and dynamic quotes, field stripping, SSE codec, agent relay, Bazaar docs. `X402_CHECK_URL=…` adds a live 402 and facilitator check |
-| `pnpm pay <endpoint> …` | paid CLI client |
-| `pnpm bazaar:register` | list all endpoints in the facilitator's Bazaar (run after each deploy; needs public `NEXT_PUBLIC_SITE_URL` and `PAY_TO_ADDRESS`) |
-| `pnpm db:push` | create the `runs` table |
+| `pnpm selftest` | asserts on prices and dynamic quotes, per-chain `accepts`/assets/domains, 6-decimal and Arc-minimum guards, per-chain custodial signatures, field stripping, SSE codec, agent relay, Bazaar docs. `X402_CHECK_URL=…` adds a live 402 and per-chain facilitator check |
+| `NETWORK=… pnpm pay <endpoint> …` | paid CLI client; `NETWORK` picks the chain |
+| `pnpm bazaar:register` | list all endpoints in every advertised chain's Bazaar (run after each deploy; needs public `NEXT_PUBLIC_SITE_URL` and `PAY_TO_ADDRESS`) |
+| `pnpm db:push` | create the `runs` and `wallets` tables |
 
 ## License
 

@@ -2,7 +2,8 @@
 import { connectorsForWallets } from "@rainbow-me/rainbowkit";
 import { braveWallet, coinbaseWallet, injectedWallet, rabbyWallet } from "@rainbow-me/rainbowkit/wallets";
 import { createConfig, http } from "wagmi";
-import { whitechainSepolia } from "./chains";
+import type { Chain } from "viem";
+import { CHAINS, NETWORKS } from "./chains";
 
 // Browser wallets only, no WalletConnect, so no Reown project ID is needed.
 // Installed extensions (MetaMask, Rabby, OKX…) also appear automatically via EIP-6963.
@@ -11,10 +12,12 @@ const connectors = connectorsForWallets(
   { appName: "tinyx402", projectId: "unused" }, // only read by WalletConnect-based wallets, none listed
 );
 
+const chains = NETWORKS.map((n) => CHAINS[n].chain) as [Chain, ...Chain[]];
+
 export const wagmiConfig = createConfig({
-  chains: [whitechainSepolia],
+  chains,
   connectors,
-  transports: { [whitechainSepolia.id]: http() },
+  transports: Object.fromEntries(chains.map((c) => [c.id, http()])),
   ssr: true,
 });
 

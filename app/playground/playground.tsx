@@ -2,7 +2,9 @@
 import { useMemo, useRef, useState } from "react";
 import { useAccount, useReadContract, useSwitchChain, useWalletClient, useBalance } from "wagmi";
 import { ENDPOINTS, quote } from "@/lib/pricing";
-import { USDT, whitechainSepolia, explorerTx, formatUsdt } from "@/lib/chains";
+import { CHAINS, explorerTx, formatAmount, isNetwork, type Network } from "@/lib/chains";
+import { useNetwork } from "@/lib/use-network";
+import { NetworkPicker } from "@/components/network-picker";
 import { erc20Abi } from "@/lib/wagmi";
 import { createPaidFetch, walletSigner, platformSigner, readSettlement, saveRun, type PayEvent, type Settlement } from "@/lib/pay-client";
 import { usePlatformWallet, GetStarted } from "@/components/account";
@@ -15,7 +17,7 @@ const newId = () => crypto.randomUUID();
 
 type LogLine = { t: number; label: string; detail?: string; tone?: "ok" | "warn" | "err" | "muted" };
 
-function describe(e: PayEvent): LogLine {
+function describe(e: PayEvent, network: Network): LogLine {
   const t = Date.now();
   switch (e.kind) {
     case "request":
@@ -25,7 +27,7 @@ function describe(e: PayEvent): LogLine {
     case "payment-required":
       return { t, label: "Payment requirements received", detail: JSON.stringify(e.requirements, null, 2), tone: "warn" };
     case "signing":
-      return { t, label: `Requesting EIP-3009 signature · ${formatUsdt(e.amount)} USDT`, detail: `to ${e.payTo}` };
+      return { t, label: `Requesting EIP-3009 signature · ${formatAmount(e.amount, network)} ${CHAINS[network].asset.symbol}`, detail: `to ${e.payTo}` };
     case "signed":
       return { t, label: "Authorization signed (no gas)", tone: "ok" };
     case "settled":
@@ -59,34 +61,39 @@ export function Playground() {
   const form = forms[id];
   const set = (k: string, v: string | boolean) => setForms((s) => ({ ...s, [id]: { ...s[id], [k]: v } }));
 
+  // Both chains are offered in the 402; `network` is the user's pick and there is no default.
+  const { network } = useNetwork();
+  const cfg = network ? CHAINS[network] : null;
   const bal = useReadContract({
-    address: USDT.address,
+    address: cfg?.asset.address,
     abi: erc20Abi,
     functionName: "balanceOf",
     args: payer ? [payer] : undefined,
-    chainId: whitechainSepolia.id,
-    query: { enabled: !!payer },
+    chainId: cfg?.chain.id,
+    query: { enabled: !!payer && !!cfg },
   });
-  const wbt = useBalance({ address: payer, chainId: whitechainSepolia.id, query: { enabled: !!payer } });
-  const usdt = bal.data as bigint | undefined;
-  const wrongChain = !onPlatform && isConnected && chainId !== whitechainSepolia.id;
+  // Native/gas balance. Not needed to pay (the facilitator covers gas) and on Arc this reads
+  // the 18-decimal view of the very same USDC the payment uses at 6 — shown only as a courtesy.
+  const gas = useBalance({ address: payer, chainId: cfg?.chain.id, query: { enabled: !!payer && !!cfg } });
+  const funds = bal.data as bigint | undefined;
+  const wrongChain = !onPlatform && isConnected && !!cfg && chainId !== cfg.chain.id;
   const signer = onPlatform ? platformSigner(platform.address) : wallet ? walletSigner(wallet) : null;
   const req = useMemo(() => buildRequest(id, form), [id, form]);
   const price = quote(ep.product, "error" in req ? forms[id] : req.body);
-  const capBase = Math.round(Number(cap) * 10 ** USDT.decimals);
+  const capBase = Math.round(Number(cap) * 10 ** (cfg?.asset.decimals ?? 6));
   const overCap = capBase < Number(price);
-  const lowBalance = usdt !== undefined && usdt < BigInt(price);
+  const lowBalance = funds !== undefined && funds < BigInt(price);
 
 
   async function run() {
-    if (!signer || "error" in req) return;
+    if (!signer || !network || "error" in req) return; // no default chain: nothing to pay on until picked
     setBusy(true);
     setLog([]);
     setEvents([]);
     setResult(null);
     setSettle(null);
     setLive(null);
-    const push = (e: PayEvent) => setLog((l) => [...l, describe(e)]);
+    const push = (e: PayEvent) => setLog((l) => [...l, describe(e, network!)]);
     const abort = new AbortController();
     abortRef.current = abort;
     const started = now();
@@ -94,7 +101,7 @@ export function Playground() {
     let status = 0;
     let s: Settlement | null = null;
     try {
-      const paidFetch = createPaidFetch(signer, push, String(capBase));
+      const paidFetch = createPaidFetch(signer, network, push, String(capBase));
       const res = await paidFetch(req.url, { ...req.init, signal: abort.signal });
       status = res.status;
       s = readSettlement(res);
@@ -145,6 +152,7 @@ export function Playground() {
         at: Math.round(performance.timeOrigin + now()),
         endpoint: ep.path,
         amount: s?.transaction ? price : "0",
+        network: isNetwork(s?.network) ? s.network : network,
         status,
         ms: Math.round(now() - started),
         payer: s?.payer ?? payer,
@@ -217,12 +225,15 @@ export function Playground() {
               }
             />
           )}
-          <Row k="Cost" v={<span className="font-mono">{formatUsdt(price)} USDT</span>} />
+          <Row k="Cost" v={<span className="font-mono">{cfg ? `${formatAmount(price, network!)} ${cfg.asset.symbol}` : "pick a network"}</span>} />
           <Row
-            k="Your USDT"
-            v={<span className={`font-mono ${lowBalance ? "text-danger" : ""}`}>{usdt === undefined ? "–" : formatUsdt(usdt)}</span>}
+            k={`Your ${cfg ? cfg.asset.symbol : "balance"}`}
+            v={<span className={`font-mono ${lowBalance ? "text-danger" : ""}`}>{funds === undefined || !network ? "–" : formatAmount(funds, network)}</span>}
           />
-          <Row k="Your WBT (not needed)" v={<span className="font-mono text-muted">{wbt.data ? Number(wbt.data.formatted).toFixed(4) : "–"}</span>} />
+          <Row
+            k={`Your ${cfg ? cfg.chain.nativeCurrency.symbol : "gas token"} (not needed)`}
+            v={<span className="font-mono text-muted">{gas.data ? Number(gas.data.formatted).toFixed(4) : "–"}</span>}
+          />
           <Row
             k={<label htmlFor="cap">Spend cap / payment</label>}
             v={
@@ -234,12 +245,12 @@ export function Playground() {
                   onChange={(e) => setCap(e.target.value)}
                   className="w-20 rounded-md border border-line bg-bg px-2 py-1 text-right font-mono"
                 />
-                <span className="text-muted">USDT</span>
+                <span className="text-muted">{cfg ? cfg.asset.symbol : ""}</span>
               </span>
             }
           />
           {overCap && <p className="mt-2 text-xs text-warn">Cap is below this endpoint&apos;s price; the client will refuse to pay.</p>}
-          {lowBalance && <p className="mt-2 text-xs text-danger">Not enough test USDT. See the docs for how to get some.</p>}
+          {lowBalance && cfg && <p className="mt-2 text-xs text-danger">Not enough test {cfg.asset.symbol}. {cfg.faucet.note}</p>}
         </div>
 
         {!signer ? (
@@ -247,9 +258,15 @@ export function Playground() {
             label="Get started to run"
             className="rounded-lg bg-accent px-4 py-3 text-sm font-medium text-accent-ink hover:opacity-90"
           />
+        ) : !cfg ? (
+          // No default chain on purpose: paying on the wrong one is worth one deliberate click.
+          <div className="flex items-center gap-3 rounded-lg border border-accent bg-accent/10 px-4 py-3 text-sm">
+            <span>Choose a network to pay on</span>
+            <NetworkPicker />
+          </div>
         ) : wrongChain ? (
-          <button onClick={() => switchChain({ chainId: whitechainSepolia.id })} className="rounded-lg bg-warn px-4 py-3 text-sm font-medium text-black">
-            Switch to Whitechain Sepolia
+          <button onClick={() => switchChain({ chainId: cfg.chain.id })} className="rounded-lg bg-warn px-4 py-3 text-sm font-medium text-black">
+            Switch to {cfg.label}
           </button>
         ) : (
           <div className="flex gap-2">
@@ -258,7 +275,7 @@ export function Playground() {
               disabled={busy || !signer || "error" in req || overCap}
               className="flex-1 rounded-lg bg-accent px-4 py-3 text-sm font-medium text-accent-ink hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {busy ? "Running…" : `Run with x402 · ${formatUsdt(price)} USDT`}
+              {busy ? "Running…" : `Run with x402 · ${formatAmount(price, network!)} ${cfg.asset.symbol}`}
             </button>
             {busy && (
               <button onClick={() => abortRef.current?.abort()} className="rounded-lg border border-line px-4 text-sm">
@@ -303,8 +320,8 @@ export function Playground() {
           )}
           {settle && (
             <div className="mt-4 rounded-lg border border-accent/30 bg-accent-soft/60 p-3 text-sm">
-              <div className="font-medium">Paid {formatUsdt(price)} USDT</div>
-              <a href={explorerTx(settle.transaction)} target="_blank" rel="noreferrer" className="mt-1 block break-all font-mono text-xs text-accent underline">
+              <div className="font-medium">Paid {formatAmount(price, network!)} {cfg?.asset.symbol}</div>
+              <a href={explorerTx(settle.transaction, isNetwork(settle.network) ? settle.network : network!)} target="_blank" rel="noreferrer" className="mt-1 block break-all font-mono text-xs text-accent underline">
                 {settle.transaction}
               </a>
               <div className="mt-1 font-mono text-xs text-muted">payer {settle.payer}</div>

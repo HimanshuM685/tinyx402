@@ -17,11 +17,12 @@ import { privateKeyToAccount } from "viem/accounts";
 
 const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
 const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
-  schemes: [{ network: "eip155:1874", client: new ExactEvmScheme(account) }],
+  // One entry per chain is offered in the 402; register the one you hold funds on.
+  schemes: [{ network: "eip155:5042002", client: new ExactEvmScheme(account) }],
   spendControls: {
     allowedAssets: [{
-      network: "eip155:1874",
-      asset: "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
+      network: "eip155:5042002",
+      asset: "0x3600000000000000000000000000000000000000", // Arc Testnet USDC
       maxAmountPerPayment: "100000",
     }],
   },
@@ -33,7 +34,7 @@ console.log(await res.json());
 
 // Receipt
 const receipt = decodePaymentResponseHeader(res.headers.get("PAYMENT-RESPONSE")!);
-console.log(receipt.transaction); // 0x… on Whitechain Sepolia
+console.log(receipt.transaction, receipt.network); // tx hash + the chain it settled on
 
 // POST
 const page = await paidFetch("https://your-domain.com/api/v1/fetch", {
@@ -81,8 +82,8 @@ const signer = {
   signTypedData: (m) => wallet!.signTypedData({ account: wallet!.account, ...m }),
 };
 const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
-  schemes: [{ network: "eip155:1874", client: new ExactEvmScheme(signer) }],
-  spendControls: { allowedAssets: [{ network: "eip155:1874", asset: "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7", maxAmountPerPayment: "250000" }] },
+  schemes: [{ network: "eip155:5042002", client: new ExactEvmScheme(signer) }],
+  spendControls: { allowedAssets: [{ network: "eip155:5042002", asset: "0x3600000000000000000000000000000000000000", maxAmountPerPayment: "250000" }] },
 });
 ```
 
@@ -101,14 +102,14 @@ from x402.http.clients import x402_requests
 from x402.mechanisms.evm.exact import ExactEvmScheme
 from x402.mechanisms.evm.signers import EthAccountSigner
 
-NETWORK = "eip155:1874"
-USDT = "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7"
+NETWORK = "eip155:5042002"
+ASSET = "0x3600000000000000000000000000000000000000"  # Arc Testnet USDC
 
 account = Account.from_key(os.environ["PRIVATE_KEY"])
 client = x402ClientSync.from_config(x402ClientConfig(
     schemes=[SchemeRegistration(network=NETWORK, client=ExactEvmScheme(EthAccountSigner(account)))],
     spend_controls={
-        "allowed_assets": [{"network": NETWORK, "asset": USDT, "max_amount_per_payment": "100000"}],
+        "allowed_assets": [{"network": NETWORK, "asset": ASSET, "max_amount_per_payment": "100000"}],
     },
 ))
 session = x402_requests(client)
@@ -155,7 +156,7 @@ The `PAYMENT-SIGNATURE` value is the base64 of:
 }
 ```
 
-The signature is EIP-712 over `TransferWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)` with domain `{ name: "Tether USD", version: "1", chainId: 1874, verifyingContract: <asset> }`.
+The signature is EIP-712 over `TransferWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)`. The domain is per chain: `{ name: "USDC", version: "2", chainId: 5042002, verifyingContract: <asset> }` on Arc Testnet, `{ name: "Tether USD", version: "1", chainId: 1874, … }` on Whitechain Sepolia. Take `name`/`version` from the `extra` of the `accepts` entry you picked — see [Networks](/docs/networks).
 
 ## The repo's CLI
 

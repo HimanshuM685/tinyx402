@@ -2,11 +2,11 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useAccount } from "wagmi";
 import { useMounted } from "@/components/header";
-import { clearRuns, loadRuns, type LocalRun } from "@/lib/pay-client";
-import { explorerTx, formatUsdt } from "@/lib/chains";
+import { clearRuns, loadRuns, LEGACY_NETWORK, type LocalRun } from "@/lib/pay-client";
+import { CHAINS, explorerTx, formatAmount, isNetwork, type Network } from "@/lib/chains";
 
-type ServerRun = { id: string; endpoint: string; payer: string | null; amount: string; txHash: string | null; status: number; durationMs: number | null; createdAt: string };
-type Row = { key: string; at: number; endpoint: string; amount: string; status: number; ms?: number; tx?: string; payer?: string; source: "browser" | "server"; run?: LocalRun };
+type ServerRun = { id: string; endpoint: string; payer: string | null; amount: string; network: string; txHash: string | null; status: number; durationMs: number | null; createdAt: string };
+type Row = { key: string; at: number; endpoint: string; amount: string; network: Network; status: number; ms?: number; tx?: string; payer?: string; source: "browser" | "server"; run?: LocalRun };
 
 export function Dashboard() {
   const { address } = useAccount();
@@ -26,23 +26,28 @@ export function Dashboard() {
   const rows = useMemo(() => {
     const out = new Map<string, Row>();
     for (const r of server?.runs ?? [])
-      out.set(r.txHash ?? r.id, { key: r.id, at: Date.parse(r.createdAt), endpoint: r.endpoint, amount: r.amount, status: r.status, ms: r.durationMs ?? undefined, tx: r.txHash ?? undefined, payer: r.payer ?? undefined, source: "server" });
+      out.set(r.txHash ?? r.id, { key: r.id, at: Date.parse(r.createdAt), endpoint: r.endpoint, amount: r.amount, network: isNetwork(r.network) ? r.network : LEGACY_NETWORK, status: r.status, ms: r.durationMs ?? undefined, tx: r.txHash ?? undefined, payer: r.payer ?? undefined, source: "server" });
     for (const r of local) {
       if (scope === "mine" && address && r.payer && r.payer.toLowerCase() !== address.toLowerCase()) continue;
       const k = r.tx ?? r.id;
-      out.set(k, { ...(out.get(k) ?? {}), key: r.id, at: r.at, endpoint: r.endpoint, amount: r.amount, status: r.status, ms: r.ms, tx: r.tx, payer: r.payer, source: "browser", run: r });
+      out.set(k, { ...(out.get(k) ?? {}), key: r.id, at: r.at, endpoint: r.endpoint, amount: r.amount, network: r.network ?? LEGACY_NETWORK, status: r.status, ms: r.ms, tx: r.tx, payer: r.payer, source: "browser", run: r });
     }
     return [...out.values()].sort((a, b) => b.at - a.at);
   }, [local, server, scope, address]);
 
-  const spent = rows.reduce((s, r) => s + (r.tx ? Number(r.amount) : 0), 0);
+  // Per asset, never one number: USDT and USDC are different money and adding them is nonsense.
+  const spent = useMemo(() => {
+    const by = new Map<Network, bigint>();
+    for (const r of rows) if (r.tx) by.set(r.network, (by.get(r.network) ?? BigInt(0)) + BigInt(r.amount));
+    return [...by].map(([n, total]) => `${formatAmount(total, n)} ${CHAINS[n].asset.symbol}`).join(" · ");
+  }, [rows]);
   const paid = rows.filter((r) => r.tx).length;
 
   return (
     <div className="mt-6 space-y-6">
       <div className="grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-3">
         <Stat k="Paid runs" v={String(paid)} />
-        <Stat k="Total spent" v={`${formatUsdt(BigInt(spent))} USDT`} />
+        <Stat k="Total spent" v={spent || "–"} />
         <Stat k="Server log" v={server == null ? "…" : server.enabled ? "Postgres" : "off (browser only)"} />
       </div>
 
@@ -81,10 +86,12 @@ export function Dashboard() {
                     <span className={`font-mono text-xs ${r.status < 400 ? "text-accent" : "text-danger"}`}>{r.status}</span>
                     {r.ms != null && <span className="ml-2 text-xs text-muted">{(r.ms / 1000).toFixed(1)}s</span>}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono">{r.tx ? formatUsdt(r.amount) : "0"}</td>
+                  <td className="px-4 py-3 text-right font-mono">
+                    {r.tx ? `${formatAmount(r.amount, r.network)} ${CHAINS[r.network].asset.symbol}` : "0"}
+                  </td>
                   <td className="px-4 py-3 font-mono text-xs">
                     {r.tx ? (
-                      <a href={explorerTx(r.tx)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-accent hover:underline">
+                      <a href={explorerTx(r.tx, r.network)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-accent hover:underline">
                         {r.tx.slice(0, 10)}…{r.tx.slice(-8)}
                       </a>
                     ) : (

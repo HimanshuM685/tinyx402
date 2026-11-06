@@ -27,14 +27,14 @@ Since anyone can return a `402`, a client should never pay blindly. Always pin w
 ```ts
 spendControls: {
   allowedAssets: [{
-    network: "eip155:1874",
-    asset: "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7", // USDT
-    maxAmountPerPayment: "250000",                       // 0.25 USDT
+    network: "eip155:5042002",
+    asset: "0x3600000000000000000000000000000000000000", // Arc Testnet USDC
+    maxAmountPerPayment: "250000",                       // 0.25
   }],
 }
 ```
 
-The client refuses any requirement that names another asset or network, or asks for more than the cap. The playground lets you set this cap per session.
+The client refuses any requirement that names another asset or network, or asks for more than the cap. Since each 402 offers [several chains](/docs/networks), this is also what pins you to the one you meant to spend on. The playground lets you set this cap per session.
 
 ## Signatures are single-use
 

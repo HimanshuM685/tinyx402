@@ -1,0 +1,70 @@
+export const metadata = { title: "Networks + facilitators" };
+
+# Networks + facilitators
+
+Every paid endpoint answers `402` with one `accepts` entry **per chain below**. You pay with whichever asset you hold; the price is the same number of base units on both. There is no default — pick one.
+
+<Networks />
+
+Prices are identical across chains because both assets use 6 decimals, so `10000` is `0.01` either way. Chains are defined in `lib/chains.ts`; `X402_NETWORKS` narrows which ones a deployment advertises.
+
+## Choosing one in code
+
+Your client registers the chain you intend to pay on. Swap the network and the asset together — they are a pair:
+
+```ts
+import { wrapFetchWithPaymentFromConfig } from "@x402/fetch";
+import { ExactEvmScheme } from "@x402/evm/exact/client";
+
+const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
+  schemes: [{ network: "eip155:5042002", client: new ExactEvmScheme(account) }],
+  spendControls: {
+    allowedAssets: [{
+      network: "eip155:5042002",
+      asset: "0x3600000000000000000000000000000000000000", // Arc Testnet USDC
+      maxAmountPerPayment: "100000",
+    }],
+  },
+});
+```
+
+<Callout type="warn">
+  The EIP-712 domain in `extra` differs per chain — Whitechain USDT signs under `version: "1"`,
+  Arc USDC under `version: "2"`. One wrong character and your signature recovers to a different
+  address, so verification fails with no transaction and nothing to inspect. Read `extra`
+  straight from the `accepts` entry you chose rather than hardcoding it.
+</Callout>
+
+## Arc: one balance, two interfaces
+
+The thing to get right on Arc. Its USDC is the native gas token *and* an ERC-20, through one balance read two ways:
+
+| Interface | Decimals | Read with | Used for |
+| --- | --- | --- | --- |
+| Native | 18 | `eth_getBalance` | gas |
+| ERC-20 | 6 | `balanceOf` on `0x3600…` | payment `amount`, transfers |
+
+They are the same money, a factor of 10<sup>12</sup> apart. **Payments live entirely on the ERC-20 view.** Mixing the two in one expression is the canonical Arc bug.
+
+Arc's USDC is a predeploy, so the address is identical on Arc mainnet and Arc Testnet. A signature still cannot cross between them: `chainId` is part of the EIP-712 domain.
+
+## Facilitators
+
+Each chain has its own facilitator, and the server registers both. The x402 SDK reads `/supported` from each and routes `/verify` and `/settle` by the network inside the payment payload — so nothing in your client has to know which is which.
+
+```bash
+curl -s https://whitechain.007575.xyz/supported | jq
+curl -s https://arc.007575.xyz/supported | jq
+curl -s https://arc.007575.xyz/health | jq
+```
+
+Both facilitators submit `transferWithAuthorization` and pay the gas, so payers only ever sign. Neither ever holds your funds.
+
+Arc mainnet (`eip155:5042`) is deliberately not advertised: that facilitator ships with mainnet settlement switched off, so `/verify` answers normally but `/settle` returns `503 mainnet_disabled`. Offering a chain that cannot settle would let an agent sign a payment that can never complete.
+
+## Getting test funds
+
+- **Arc Testnet** — [faucet.circle.com](https://faucet.circle.com) gives you test USDC. You need nothing else: gas is USDC, and the facilitator pays it anyway.
+- **Whitechain Sepolia** — the test USDT's `mint` is owner-restricted, so it cannot be self-minted. Ask the facilitator or token operator for an allocation, or have someone transfer you some. 1 USDT covers 100 searches. WBT is only needed if you send your own transactions, which paying does not require.
+
+Add either network to MetaMask with the values in the table above, or press **Switch network** in the [playground](/playground) after choosing a chain.

@@ -10,7 +10,7 @@ const mono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 export const metadata: Metadata = {
   title: { default: "tinyx402: web agents, paid per request", template: "%s · tinyx402" },
   description:
-    "Search, Fetch, Browser Agent and Research APIs paid per request with USDT on Whitechain via the x402 protocol. No API keys.",
+    "Search, Fetch, Browser Agent and Research APIs paid per request with USDC on Arc or USDT on Whitechain via the x402 protocol. No API keys.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
 };
 

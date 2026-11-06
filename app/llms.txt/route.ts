@@ -1,5 +1,5 @@
 import { ENDPOINTS, PRICES } from "@/lib/pricing";
-import { NETWORK, USDT, FACILITATOR_URL } from "@/lib/chains";
+import { CHAINS, NETWORKS } from "@/lib/chains";
 
 export const dynamic = "force-static";
 
@@ -7,14 +7,16 @@ export function GET() {
   const base = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
   const body = `# tinyx402
 
-> TinyFish web APIs (Search, Fetch, Agent, Research, Datasets, Browser) resold per request over x402 (USDT on Whitechain). No API keys.
+> TinyFish web APIs (Search, Fetch, Agent, Research, Datasets, Browser) resold per request over x402. No API keys.
 
 ## Payment
 - Protocol: x402 v2, scheme "exact" (EIP-3009 transferWithAuthorization, gasless for payer)
-- Network: ${NETWORK} (Whitechain Sepolia)
-- Asset: ${USDT.address} (USDT, 6 decimals, EIP-712 domain name "Tether USD", version "1")
-- Facilitator: ${FACILITATOR_URL}
-- Client: @x402/fetch wrapFetchWithPaymentFromConfig + @x402/evm ExactEvmScheme. Always set spendControls.allowedAssets.
+- Every 402 lists one \`accepts\` entry per chain below. Pay with whichever asset you hold; prices are identical in base units.
+${NETWORKS.map((n) => {
+  const c = CHAINS[n];
+  return `- ${n} (${c.label}): asset ${c.asset.address} (${c.asset.symbol}, ${c.asset.decimals} decimals, EIP-712 domain name "${c.asset.extra.name}", version "${c.asset.extra.version}"), facilitator ${c.facilitatorUrl}`;
+}).join("\n")}
+- Client: @x402/fetch wrapFetchWithPaymentFromConfig + @x402/evm ExactEvmScheme. Register the scheme for the chain you intend to pay on, and always set spendControls.allowedAssets.
 - Failed requests (4xx/5xx) are never settled.
 
 ## Endpoints

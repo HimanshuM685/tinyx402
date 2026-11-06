@@ -1,7 +1,10 @@
 """Pay for a tinyx402 request from Python.
 
     pip install "x402[requests,evm]>=2.27"
-    PRIVATE_KEY=0x... python pay.py "x402 protocol"
+    NETWORK=eip155:5042002 PRIVATE_KEY=0x... python pay.py "x402 protocol"
+
+Every 402 offers one `accepts` entry per chain; NETWORK picks which one to pay with.
+The network and its asset go together -- see /docs/networks.
 """
 import os
 import sys
@@ -14,15 +17,21 @@ from x402.mechanisms.evm.exact import ExactEvmScheme
 from x402.mechanisms.evm.signers import EthAccountSigner
 
 BASE = os.environ.get("TINYX402_URL", "http://localhost:3000")
-NETWORK = "eip155:1874"
-USDT = "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7"
+ASSETS = {
+    "eip155:5042002": "0x3600000000000000000000000000000000000000",  # Arc Testnet USDC
+    "eip155:1874": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",  # Whitechain Sepolia USDT
+}
+NETWORK = os.environ.get("NETWORK", "")
+if NETWORK not in ASSETS:
+    sys.exit(f"Set NETWORK to one of: {', '.join(ASSETS)}")
+ASSET = ASSETS[NETWORK]
 
 account = Account.from_key(os.environ["PRIVATE_KEY"])
 client = x402ClientSync.from_config(
     x402ClientConfig(
         schemes=[SchemeRegistration(network=NETWORK, client=ExactEvmScheme(EthAccountSigner(account)))],
         spend_controls={
-            "allowed_assets": [{"network": NETWORK, "asset": USDT, "max_amount_per_payment": "100000"}],
+            "allowed_assets": [{"network": NETWORK, "asset": ASSET, "max_amount_per_payment": "100000"}],
         },
     )
 )

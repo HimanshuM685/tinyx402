@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAccount, useReadContract } from "wagmi";
 import { ConnectButton, useConnectModal } from "@rainbow-me/rainbowkit";
 import { authClient } from "@/lib/auth/client";
-import { USDT, whitechainSepolia, formatUsdt } from "@/lib/chains";
+import { CHAINS, NETWORKS, formatAmount, type Network } from "@/lib/chains";
 import { erc20Abi } from "@/lib/wagmi";
 import { CopyButton } from "./copy-button";
 
@@ -88,7 +88,7 @@ export function GetStarted({ label = "Get started", className }: { label?: strin
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold">Get started</h2>
-              <p className="mt-1 text-sm text-muted">Pay for web APIs per request in test USDT.</p>
+              <p className="mt-1 text-sm text-muted">Pay for web APIs per request, in test stablecoins.</p>
             </div>
             <button onClick={() => ref.current?.close()} aria-label="Close" className="grid size-8 place-items-center rounded-md text-muted hover:bg-surface-2 hover:text-ink">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 6l12 12M18 6 6 18" /></svg>
@@ -123,7 +123,7 @@ export function GetStarted({ label = "Get started", className }: { label?: strin
           {error && <p role="alert" className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">{error}</p>}
 
           <ul className="mt-5 space-y-1.5 border-t border-line pt-4 text-xs text-muted">
-            {authEnabled && <li><span className="text-ink">Google</span> creates a wallet for you. No extension, no pop-ups when you pay.</li>}
+            {authEnabled && <li><span className="text-ink">Google</span> creates one wallet that works on every supported chain. No extension, no pop-ups when you pay.</li>}
             <li><span className="text-ink">Wallet</span>: MetaMask, Rabby, Brave, Coinbase or any browser wallet.</li>
             <li>
               Agents and scripts need neither. Call the API with x402 directly. <Link href="/docs/authentication" className="text-accent hover:underline" onClick={() => ref.current?.close()}>How</Link>
@@ -135,9 +135,30 @@ export function GetStarted({ label = "Get started", className }: { label?: strin
   );
 }
 
+/** One chain's balance for the platform wallet. Its own component so the hook isn't in a loop. */
+function Balance({ address, network }: { address: `0x${string}`; network: Network }) {
+  const { asset, chain } = CHAINS[network];
+  const bal = useReadContract({
+    // balanceOf, i.e. the ERC-20 view. On Arc the native view is 18 decimals for the same
+    // money — reading that here would overstate the balance by a factor of 10^12.
+    address: asset.address,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [address],
+    chainId: chain.id,
+  });
+  return (
+    <p className="mt-1 flex items-baseline justify-between gap-2 font-mono text-xs">
+      <span className="text-muted">{CHAINS[network].label}</span>
+      <span>
+        {bal.data === undefined ? "–" : formatAmount(bal.data as bigint, network)} {asset.symbol}
+      </span>
+    </p>
+  );
+}
+
 function AccountChip({ w }: { w: PlatformWallet }) {
   const qc = useQueryClient();
-  const bal = useReadContract({ address: USDT.address, abi: erc20Abi, functionName: "balanceOf", args: [w.address], chainId: whitechainSepolia.id });
   return (
     <details className="relative">
       <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg border border-line px-2 py-1.5 text-sm hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
@@ -148,14 +169,18 @@ function AccountChip({ w }: { w: PlatformWallet }) {
         <p className="truncate font-medium">{w.user.name}</p>
         <p className="truncate text-xs text-muted">{w.user.email}</p>
         <div className="mt-3 rounded-lg bg-surface-2 p-3">
-          <p className="text-xs text-muted">Your wallet · Whitechain Sepolia</p>
+          <p className="text-xs text-muted">Your wallet · same address on every chain</p>
           <p className="mt-1 flex items-center justify-between gap-2 font-mono text-xs">
             {short(w.address)} <CopyButton text={w.address} />
           </p>
-          <p className="mt-2 font-mono">{bal.data === undefined ? "–" : formatUsdt(bal.data as bigint)} USDT</p>
+          <div className="mt-2 border-t border-line pt-2">
+            {NETWORKS.map((n) => (
+              <Balance key={n} address={w.address} network={n} />
+            ))}
+          </div>
         </div>
-        <Link href="/docs/whitechain#getting-test-funds" className="mt-3 block text-xs text-accent hover:underline">
-          Get test USDT
+        <Link href="/docs/networks#getting-test-funds" className="mt-3 block text-xs text-accent hover:underline">
+          Get test funds
         </Link>
         <button
           onClick={async () => {

@@ -9,12 +9,23 @@ tinyx402: TinyFish web APIs paid per request via x402 (no API key).
 
 Payment
   protocol   x402 v2, scheme "exact" (EIP-3009, gasless for payer)
-  network    eip155:1874 (Whitechain Sepolia, RPC https://rpc.testnet.whitechain.io)
-  asset      0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7 (USDT, 6 decimals, domain "Tether USD" v1)
   client     @x402/fetch wrapFetchWithPaymentFromConfig + @x402/evm/exact/client ExactEvmScheme
   safety     ALWAYS set spendControls.allowedAssets with maxAmountPerPayment
 
-Paid endpoints (price in USDT base units)
+Chains - every 402 lists one `accepts` entry per chain; pay with whichever you hold.
+  Prices are the same base units on both (both assets are 6 decimals).
+  eip155:5042002  Arc Testnet         asset 0x3600000000000000000000000000000000000000
+                  USDC, 6 decimals, domain { name: "USDC", version: "2" }
+                  RPC https://rpc.testnet.arc.io   facilitator https://arc.007575.xyz
+                  gas is USDC and the facilitator pays it; faucet https://faucet.circle.com
+  eip155:1874     Whitechain Sepolia  asset 0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7
+                  USDT, 6 decimals, domain { name: "Tether USD", version: "1" }
+                  RPC https://rpc.testnet.whitechain.io   facilitator https://whitechain.007575.xyz
+  Register the scheme + allowedAssets for ONE of these - the network and asset go together.
+  Read `extra` from the chosen accepts entry; the domain version differs per chain and a wrong
+  one recovers to another address, so verification fails with nothing to inspect.
+
+Paid endpoints (price in base units, same on every chain)
   GET  /api/v1/search?query=&location=&domain_type=      10000  -> { results: [{ position, title, snippet, url, site_name }] }
   POST /api/v1/fetch     { urls[], format, purpose? }    15000  -> { results: [{ url, title, text }], errors: [] }
   POST /api/v1/agent/run { url, goal, output_schema? }   50000  -> { run_id, status, result }
@@ -46,4 +57,4 @@ Rules
 
 ## Budgeting
 
-A `maxAmountPerPayment` of `200000` (0.20 USDT) covers every fixed-price endpoint and deep research. Use `50000` to exclude research. Datasets cost `20000 × target_rows`, so set the cap to fit. Agents can read the exact price from the `402` response before paying.
+A `maxAmountPerPayment` of `200000` (0.20, so 0.20 USDC or USDT) covers every fixed-price endpoint and deep research. Use `50000` to exclude research. Datasets cost `20000 × target_rows`, so set the cap to fit. Agents can read the exact price from the `402` response before paying. Arc rejects anything under `10000` (0.01 USDC), which is also the cheapest endpoint.

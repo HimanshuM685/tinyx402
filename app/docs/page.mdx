@@ -2,11 +2,16 @@ export const metadata = { title: "Quick start" };
 
 # Quick start
 
-tinyx402 gives scripts and AI agents [TinyFish](https://tinyfish.ai) web capabilities: search, page extraction, goal-driven browser automation, multi-source research, web-filled datasets and remote browsers. There are no API keys. Each request is paid with USDT on Whitechain through the [x402 protocol](/docs/how-x402-works).
+tinyx402 gives scripts and AI agents [TinyFish](https://tinyfish.ai) web capabilities: search, page extraction, goal-driven browser automation, multi-source research, web-filled datasets and remote browsers. There are no API keys. Each request is paid in a stablecoin through the [x402 protocol](/docs/how-x402-works), on whichever [supported chain](/docs/networks) you choose.
 
 ## 1. Get a testnet wallet
 
-Any EVM wallet works. Add **Whitechain Sepolia** (chain ID `1874`, RPC `https://rpc.testnet.whitechain.io`) and get test USDT. See [Whitechain + facilitator](/docs/whitechain#getting-test-funds). You don't need WBT for gas, because the facilitator submits the transfer.
+Any EVM wallet works. Pick a chain and fund it:
+
+- **Arc Testnet** (`eip155:5042002`) — test USDC from [faucet.circle.com](https://faucet.circle.com). Easiest: gas is USDC too, and you need none of it.
+- **Whitechain Sepolia** (`eip155:1874`) — test USDT, which has to be requested.
+
+Either way you need no gas token, because the facilitator submits the transfer. Full details: [Networks + facilitators](/docs/networks#getting-test-funds).
 
 ## 2. Try it in the browser
 
@@ -24,12 +29,13 @@ import { ExactEvmScheme } from "@x402/evm/exact/client";
 import { privateKeyToAccount } from "viem/accounts";
 
 const account = privateKeyToAccount(process.env.PRIVATE_KEY);
+// Every 402 offers each supported chain. Register the one you hold funds on.
 const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
-  schemes: [{ network: "eip155:1874", client: new ExactEvmScheme(account) }],
+  schemes: [{ network: "eip155:5042002", client: new ExactEvmScheme(account) }],
   spendControls: {
     allowedAssets: [{
-      network: "eip155:1874",
-      asset: "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
+      network: "eip155:5042002",
+      asset: "0x3600000000000000000000000000000000000000", // Arc Testnet USDC
       maxAmountPerPayment: "100000",
     }],
   },
@@ -43,12 +49,14 @@ console.log(await res.json());
 
 ## What it costs
 
+Same base units on every chain, since both assets use 6 decimals.
+
 | Endpoint | Price |
 | --- | --- |
 | `GET /api/v1/search` | <Price product="search" /> |
 | `POST /api/v1/fetch` | <Price product="fetch" /> |
 | `POST /api/v1/agent/run` · `/run-sse` | <Price product="agent" /> |
-| `POST /api/v1/research` | <Price product="research" /> (deep), 0.5 USDT (max) |
+| `POST /api/v1/research` | <Price product="research" /> (deep), 0.5 (max) |
 | `POST /api/v1/datasets` | <Price product="datasets" /> per target row |
 | `POST /api/v1/browser` | <Price product="browser" /> |
 

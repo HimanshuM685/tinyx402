@@ -3,16 +3,21 @@ import { isValidElement } from "react";
 import Link from "next/link";
 import { Code } from "@/components/code";
 import { PRICES, type Product } from "@/lib/pricing";
-import { formatUsdt } from "@/lib/chains";
+import { CHAINS, NETWORKS, formatAmount, type Network } from "@/lib/chains";
 
 function slug(children: React.ReactNode) {
   return String(Array.isArray(children) ? children.join("") : children).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+/**
+ * Every chain is priced identically in base units and all assets are 6 decimals, so the amount
+ * is one number and only the ticker differs. Rendered from the registry so docs can't drift.
+ */
 export function Price({ product }: { product: Product }) {
+  const [first] = NETWORKS;
   return (
     <span className="rounded-md bg-accent-soft px-1.5 py-0.5 font-mono text-[0.85em] text-accent">
-      {formatUsdt(PRICES[product])} USDT
+      {formatAmount(PRICES[product], first)} {NETWORKS.map((n) => CHAINS[n].asset.symbol).join(" / ")}
     </span>
   );
 }
@@ -25,6 +30,64 @@ export function Endpoint({ method, path, product }: { method: string; path: stri
       <span className="ml-auto text-xs text-muted">
         <span className="font-mono">{PRICES[product]}</span> base units · <Price product={product} />
       </span>
+    </div>
+  );
+}
+
+/** Network/asset table for the docs, rendered from CHAINS so it can never drift from code. */
+export function Networks() {
+  const rows: [string, (n: Network) => React.ReactNode][] = [
+    ["CAIP-2", (n) => <code className="font-mono text-xs">{n}</code>],
+    ["Chain ID", (n) => <code className="font-mono text-xs">{CHAINS[n].chain.id}</code>],
+    ["Asset", (n) => `${CHAINS[n].asset.symbol} (${CHAINS[n].asset.decimals} decimals)`],
+    ["Asset address", (n) => <code className="break-all font-mono text-xs">{CHAINS[n].asset.address}</code>],
+    [
+      "EIP-712 domain",
+      (n) => (
+        <code className="font-mono text-xs">{`{ name: "${CHAINS[n].asset.extra.name}", version: "${CHAINS[n].asset.extra.version}" }`}</code>
+      ),
+    ],
+    ["RPC", (n) => <code className="break-all font-mono text-xs">{CHAINS[n].chain.rpcUrls.default.http[0]}</code>],
+    [
+      "Explorer",
+      (n) => {
+        const url = CHAINS[n].chain.blockExplorers!.default.url;
+        return (
+          <a href={url} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+            {url.replace(/^https:\/\//, "")}
+          </a>
+        );
+      },
+    ],
+    ["Gas", (n) => CHAINS[n].gasNote],
+    ["Facilitator", (n) => <code className="break-all font-mono text-xs">{CHAINS[n].facilitatorUrl}</code>],
+  ];
+  return (
+    <div className="not-prose my-6 overflow-x-auto">
+      <table className="w-full min-w-[520px] text-sm">
+        <thead>
+          <tr className="border-b border-line text-left">
+            <th className="py-2 pr-4 font-medium text-muted" />
+            {NETWORKS.map((n) => (
+              <th key={n} className="py-2 pr-4 font-medium">
+                {CHAINS[n].label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([label, cell]) => (
+            <tr key={label} className="border-b border-line last:border-0 align-top">
+              <td className="py-2 pr-4 text-muted">{label}</td>
+              {NETWORKS.map((n) => (
+                <td key={n} className="py-2 pr-4">
+                  {cell(n)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -77,6 +140,7 @@ const components: MDXComponents = {
   table: (p) => <div className="overflow-x-auto"><table {...p} /></div>,
   Price,
   Endpoint,
+  Networks,
   Callout,
   Steps,
   Sequence,

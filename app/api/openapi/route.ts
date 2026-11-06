@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { ENDPOINTS, PRICES, RESEARCH_MAX_PRICE } from "@/lib/pricing";
-import { NETWORK, USDT, FACILITATOR_URL } from "@/lib/chains";
+import { CHAINS, NETWORKS } from "@/lib/chains";
 import { SearchQuery, FetchBody, AgentBody, ResearchBody, BrowserBody, DatasetBody } from "@/lib/schemas";
 
 export const dynamic = "force-static";
@@ -16,8 +16,16 @@ export function GET() {
     const op: Record<string, unknown> = {
       operationId: e.id.replace(/-(\w)/g, (_, c) => c.toUpperCase()),
       summary: e.title,
-      description: `${e.description}. Price: ${PRICES[e.product]} base units of USDT${e.product === "datasets" ? " per target_rows" : ""}${e.product === "research" ? ` (${RESEARCH_MAX_PRICE} for mode "max")` : ""}, paid via x402. Backed by TinyFish.`,
-      "x-x402": { scheme: "exact", network: NETWORK, asset: USDT.address, amount: PRICES[e.product], extra: USDT.extra, facilitator: FACILITATOR_URL },
+      description: `${e.description}. Price: ${PRICES[e.product]} base units${e.product === "datasets" ? " per target_rows" : ""}${e.product === "research" ? ` (${RESEARCH_MAX_PRICE} for mode "max")` : ""}, paid via x402. Backed by TinyFish.`,
+      // One entry per chain, mirroring the `accepts` array in the live 402.
+      "x-x402": NETWORKS.map((n) => ({
+        scheme: "exact",
+        network: n,
+        asset: CHAINS[n].asset.address,
+        amount: PRICES[e.product],
+        extra: CHAINS[n].asset.extra,
+        facilitator: CHAINS[n].facilitatorUrl,
+      })),
       security: [{ x402: [] }],
       responses: {
         "200": { description: "Success. PAYMENT-RESPONSE header carries the settlement receipt.", content: { [e.stream ? "text/event-stream" : "application/json"]: {} } },
@@ -50,7 +58,7 @@ export function GET() {
   paths["/api/v1/browser/{id}"] = { delete: { ...free("End browser session early (free)"), responses: { "204": { description: "Ended" } } } };
   return NextResponse.json({
     openapi: "3.1.0",
-    info: { title: "tinyx402 API", version: "1.0.0", description: "Web agent APIs paid per request with x402 on Whitechain. No API keys." },
+    info: { title: "tinyx402 API", version: "1.0.0", description: `Web agent APIs paid per request with x402 on ${NETWORKS.map((n) => CHAINS[n].label).join(" or ")}. No API keys.` },
     servers: [{ url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000" }],
     components: {
       securitySchemes: {

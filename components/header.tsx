@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AccountButton } from "./account";
+import { NetworkPicker } from "./network-picker";
 import { useTheme } from "next-themes";
 import { useSyncExternalStore } from "react";
 
@@ -69,9 +70,7 @@ export function Header() {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-2">
-          <span className="hidden rounded-full border border-line px-2.5 py-1 font-mono text-[11px] text-muted md:inline">
-            eip155:1874 · testnet
-          </span>
+          <NetworkPicker className="relative hidden items-center md:inline-flex" />
           <ThemeToggle />
           <AccountButton />
         </div>

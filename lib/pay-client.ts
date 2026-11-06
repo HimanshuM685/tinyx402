@@ -3,7 +3,7 @@ import { wrapFetchWithPaymentFromConfig, decodePaymentResponseHeader } from "@x4
 import { decodePaymentRequiredHeader } from "@x402/core/http";
 import { ExactEvmScheme } from "@x402/evm/exact/client";
 import type { WalletClient } from "viem";
-import { NETWORK, USDT } from "./chains";
+import { CHAINS, networkOfChainId, type Network } from "./chains";
 
 export type PayEvent =
   | { kind: "request"; url: string; method: string; paid: boolean }
@@ -31,12 +31,16 @@ export function platformSigner(address: `0x${string}`): PaySigner {
   return {
     address,
     async sign(m) {
-      if (m.primaryType !== "TransferWithAuthorization") throw new Error("Platform wallet only signs EIP-3009 USDT payments");
+      if (m.primaryType !== "TransferWithAuthorization") throw new Error("Platform wallet only signs EIP-3009 payments");
+      // Read the chain off the domain x402 actually built, so it can never disagree with the
+      // payment being signed. The server still rebuilds every domain field from its own registry.
+      const network = networkOfChainId(m.domain.chainId);
+      if (!network) throw new Error(`Platform wallet does not support chain ${String(m.domain.chainId)}`);
       const { to, value, validAfter, validBefore, nonce } = m.message;
       const res = await fetch("/api/wallet/sign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to, value: String(value), validAfter: String(validAfter), validBefore: String(validBefore), nonce }),
+        body: JSON.stringify({ to, value: String(value), validAfter: String(validAfter), validBefore: String(validBefore), nonce, network }),
       });
       const out = await res.json().catch(() => ({}));
       if (!res.ok || !out.signature) throw new Error(out.error || `Platform wallet signing failed (HTTP ${res.status})`);
@@ -49,7 +53,7 @@ export function platformSigner(address: `0x${string}`): PaySigner {
  * Browser x402 client: signer -> EIP-3009 signature -> retried request.
  * The signer only signs typed data; the facilitator pays gas.
  */
-export function createPaidFetch(payer: PaySigner, onEvent: (e: PayEvent) => void, maxAmountPerPayment = "250000") {
+export function createPaidFetch(payer: PaySigner, network: Network, onEvent: (e: PayEvent) => void, maxAmountPerPayment = "250000") {
   const signer = {
     address: payer.address,
     async signTypedData(m: TypedData) {
@@ -78,10 +82,12 @@ export function createPaidFetch(payer: PaySigner, onEvent: (e: PayEvent) => void
     return res;
   };
 
+  // Only the chosen chain is registered: the 402 offers both, and this is what makes the
+  // user's pick binding rather than letting the SDK settle on whichever it tries first.
   return wrapFetchWithPaymentFromConfig(tracingFetch, {
-    schemes: [{ network: NETWORK, client: new ExactEvmScheme(signer) }],
+    schemes: [{ network, client: new ExactEvmScheme(signer) }],
     spendControls: {
-      allowedAssets: [{ network: NETWORK, asset: USDT.address, maxAmountPerPayment }],
+      allowedAssets: [{ network, asset: CHAINS[network].asset.address, maxAmountPerPayment }],
     },
   });
 }
@@ -102,6 +108,8 @@ export type LocalRun = {
   at: number;
   endpoint: string;
   amount: string;
+  /** Absent in records written before multi-chain; those were all Whitechain. See LEGACY_NETWORK. */
+  network?: Network;
   status: number;
   ms: number;
   payer?: string;
@@ -110,6 +118,9 @@ export type LocalRun = {
   output?: unknown;
 };
 const KEY = "tinyx402.runs.v1";
+
+/** Runs stored before multi-chain carry no network, and every one of them was Whitechain. */
+export const LEGACY_NETWORK: Network = "eip155:1874";
 
 export function loadRuns(): LocalRun[] {
   try {

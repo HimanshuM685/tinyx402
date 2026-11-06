@@ -1,4 +1,5 @@
-// Single source of truth for prices (USDT base units, 6 decimals).
+// Single source of truth for prices. Base units at 6 decimals, identical on every chain —
+// both supported assets are 6 decimals, so "10000" is 0.01 USDT or 0.01 USDC alike.
 export const PRICES = {
   search: "10000", // 0.01
   fetch: "15000", // 0.015

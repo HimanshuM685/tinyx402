@@ -1,6 +1,6 @@
 /**
- * Pay for any tinyx402 endpoint from a script.
- *   PRIVATE_KEY=0x... pnpm pay search "x402 protocol"
+ * Pay for any tinyx402 endpoint from a script. NETWORK picks the chain (see lib/chains.ts).
+ *   NETWORK=eip155:5042002 PRIVATE_KEY=0x... pnpm pay search "x402 protocol"
  *   PRIVATE_KEY=0x... pnpm pay fetch https://example.com
  *   PRIVATE_KEY=0x... pnpm pay agent https://news.ycombinator.com "top 3 story titles"
  *   PRIVATE_KEY=0x... pnpm pay research "state of x402 adoption"     (then follows free events)
@@ -11,15 +11,23 @@ import { wrapFetchWithPaymentFromConfig, decodePaymentResponseHeader } from "@x4
 import { ExactEvmScheme } from "@x402/evm/exact/client";
 import { privateKeyToAccount } from "viem/accounts";
 import { readSse } from "../lib/sse";
+import { CHAINS, NETWORKS, isNetwork } from "../lib/chains";
 
 const BASE = process.env.TINYX402_URL || "http://localhost:3000";
-const USDT = "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7";
+
+// Which chain to pay on. Every 402 offers them all, so this has to be chosen, not defaulted —
+// NETWORK=eip155:1874 pnpm pay search "…"
+const network = process.env.NETWORK;
+if (!isNetwork(network)) {
+  throw new Error(`Set NETWORK to one of: ${NETWORKS.join(", ")}`);
+}
+const { asset } = CHAINS[network];
 
 const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
 const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
-  schemes: [{ network: "eip155:1874", client: new ExactEvmScheme(account) }],
+  schemes: [{ network, client: new ExactEvmScheme(account) }],
   spendControls: {
-    allowedAssets: [{ network: "eip155:1874", asset: USDT, maxAmountPerPayment: process.env.MAX_PER_PAYMENT || "500000" }],
+    allowedAssets: [{ network, asset: asset.address, maxAmountPerPayment: process.env.MAX_PER_PAYMENT || "500000" }],
   },
 });
 

@@ -11,11 +11,11 @@ export default function Page() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Playground</h1>
           <p className="mt-1 text-sm text-muted">
-            Real requests, real payments on Whitechain Sepolia. Your wallet signs; the facilitator pays the gas.
+            Real requests, real payments. Pick a chain, your wallet signs, and the facilitator pays the gas.
           </p>
         </div>
         <Link href="/docs/web-app" className="text-sm text-accent hover:underline">
-          Need test USDT?
+          Need test funds?
         </Link>
       </div>
       <Playground />

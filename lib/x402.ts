@@ -3,7 +3,7 @@ import "server-only";
  * x402 v2 payment middleware for every /api/v1 route. Nothing here moves money directly:
  *   1. unpaid request      -> withX402 replies 402 + PAYMENT-REQUIRED (built by paid())
  *   2. client signs EIP-3009 TransferWithAuthorization off-chain, retries with PAYMENT-SIGNATURE
- *   3. facilitator /verify -> HTTPFacilitatorClient below (FACILITATOR_URL)
+ *   3. facilitator /verify -> the HTTPFacilitatorClient for that payment's chain (see below)
  *   4. handler runs        -> TinyFish call
  *   5. facilitator /settle -> only when the handler returned status < 400; facilitator pays gas
  *   6. receipt             -> PAYMENT-RESPONSE header (or final `payment` SSE event in paidStream)
@@ -17,7 +17,7 @@ import { decodePaymentResponseHeader } from "@x402/core/http";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { bazaarResourceServerExtension, declareDiscoveryExtension } from "@x402/extensions/bazaar";
 import { z } from "zod";
-import { NETWORK, USDT, FACILITATOR_URL } from "./chains";
+import { CHAINS, NETWORKS, isNetwork, type Network } from "./chains";
 import { PRICES, quote, type Product } from "./pricing";
 import { rateLimit } from "./ratelimit";
 import { recordRun } from "./db";
@@ -26,17 +26,52 @@ import { issues, SearchQuery, FetchBody, AgentBody, ResearchBody, DatasetBody, B
 import { DEFAULTS, buildRequest, type Id } from "./playground";
 import { upstreamFailure, UpstreamError } from "./tinyfish";
 
-const network = (process.env.X402_NETWORK || NETWORK) as `${string}:${string}`;
 const payTo = process.env.PAY_TO_ADDRESS || "";
-const asset = process.env.USDT_ADDRESS || USDT.address;
 
-export const facilitator = new HTTPFacilitatorClient({
-  url: process.env.FACILITATOR_URL || FACILITATOR_URL,
-});
+/**
+ * Networks advertised in every 402. Defaults to every configured chain.
+ *
+ * X402_NETWORKS narrows it to a comma-separated subset, for a deployment that wants to sell on
+ * one chain. X402_NETWORK (singular) is the pre-multi-chain name and still works — but it is
+ * set to a single network in every old .env, so honouring it silently would mean a deployment
+ * that added Arc never offers it and gets no hint why. Hence the warning.
+ */
+export const ADVERTISED: Network[] = (() => {
+  const raw = process.env.X402_NETWORKS || process.env.X402_NETWORK || "";
+  const want = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  if (!want.length) return NETWORKS;
+  const bad = want.filter((n) => !isNetwork(n));
+  if (bad.length) {
+    throw new Error(
+      `${process.env.X402_NETWORKS ? "X402_NETWORKS" : "X402_NETWORK"} has unknown network(s): ${bad.join(", ")}. Known: ${NETWORKS.join(", ")}`,
+    );
+  }
+  const missing = NETWORKS.filter((n) => !want.includes(n));
+  if (missing.length) {
+    console.warn(
+      `[x402] Only advertising ${want.join(", ")} — ${missing.join(", ")} excluded by ` +
+        `${process.env.X402_NETWORKS ? "X402_NETWORKS" : "X402_NETWORK"}. Unset it to sell on every chain.`,
+    );
+  }
+  return want as Network[];
+})();
 
-export const server = new x402ResourceServer(facilitator)
-  .register(network, new ExactEvmScheme())
-  .registerExtension(bazaarResourceServerExtension); // Bazaar discovery: method + route enrichment
+/** The facilitator URL for a network, overridable per chain for self-hosting. */
+const facilitatorUrl = (n: Network) =>
+  (n === "eip155:1874" ? process.env.FACILITATOR_URL : process.env.ARC_FACILITATOR_URL) || CHAINS[n].facilitatorUrl;
+
+// One client per distinct URL. The resource server fetches /supported from each and routes
+// verify/settle by the network in the payment payload, so no dispatch logic belongs here.
+// This has to be exact: initialize() throws RouteConfigurationError if a network in `accepts`
+// is not served by any registered facilitator, which would break every paid route, not just one.
+export const facilitators = [...new Set(ADVERTISED.map(facilitatorUrl))].map(
+  (url) => new HTTPFacilitatorClient({ url }),
+);
+
+export const server = ADVERTISED.reduce(
+  (s, n) => s.register(n, new ExactEvmScheme()),
+  new x402ResourceServer(facilitators),
+).registerExtension(bazaarResourceServerExtension); // Bazaar discovery: method + route enrichment
 
 const SCHEMAS: Record<Id, z.ZodType> = {
   search: SearchQuery, fetch: FetchBody, agent: AgentBody, "agent-sse": AgentBody, research: ResearchBody, datasets: DatasetBody, browser: BrowserBody,
@@ -69,29 +104,35 @@ export function discovery(id: Id) {
 
 const DYNAMIC: Product[] = ["research", "datasets"];
 
+/** @x402/core exports RouteConfig but not the option type inside it. */
+type PaymentOption = Extract<RouteConfig["accepts"], unknown[]>[number];
+
 /** Route config for a product, using the explicit asset/amount/extra price shape. */
 export function paid(product: Product, description: string, stream = false): RouteConfig {
   const id: Id = stream ? "agent-sse" : product;
   if (!/^0x[0-9a-fA-F]{40}$/.test(payTo)) throw new Error("PAY_TO_ADDRESS is not set to a valid EVM address");
+  // One option per advertised chain. The payer signs with whatever they hold; `extra` must come
+  // from the registry per chain (Whitechain USDT is version "1", Arc USDC is version "2" — a
+  // shared literal here is the classic way to make one chain's signatures silently unverifiable).
   return {
-    accepts: {
+    accepts: ADVERTISED.map((n): PaymentOption => ({
       scheme: "exact",
-      network,
+      network: n,
       payTo,
       price: DYNAMIC.includes(product)
         ? // research mode / dataset row count change the price; quoted from the request body
           async (ctx) => ({
-            asset,
+            asset: CHAINS[n].asset.address,
             amount: quote(product, await ctx.adapter.getBody?.()),
-            extra: { name: "Tether USD", version: "1" },
+            extra: CHAINS[n].asset.extra,
           })
         : {
-            asset, // Whitechain Sepolia USDT
+            asset: CHAINS[n].asset.address,
             amount: PRICES[product],
-            extra: { name: "Tether USD", version: "1" },
+            extra: CHAINS[n].asset.extra,
           },
       maxTimeoutSeconds: 300,
-    },
+    })),
     description,
     mimeType: stream ? "text/event-stream" : "application/json",
     serviceName: "tinyx402",
@@ -126,7 +167,9 @@ export function paidRoute(product: Product, description: string, handler: Handle
         amount: quote(product, input),
         payer: settle?.payer,
         txHash: settle?.transaction,
-        network: settle?.network ?? network,
+        // quote() is right only because every chain is priced identically in base units
+        // (both assets are 6 decimals; selftest asserts it). The asset is derivable from network.
+        network: settle?.network ?? "unknown",
         status: res.status,
         input,
         output,

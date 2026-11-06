@@ -14,16 +14,34 @@ async function main() {
   // Prices: exact base units from the spec.
   assert.deepEqual(PRICES, { search: "10000", fetch: "15000", agent: "50000", research: "200000", browser: "30000", datasets: "20000" });
 
-  // Route config: explicit asset/amount/extra price, correct network.
+  // Route config: one accepts option per advertised chain, each with that chain's own asset
+  // and EIP-712 domain. A shared `extra` across chains is the bug this guards.
+  const { CHAINS, NETWORKS, MIN_PAYMENT } = await import("../lib/chains");
+  const { ADVERTISED } = await import("../lib/x402");
   const cfg = paid("search", "t");
-  const a = Array.isArray(cfg.accepts) ? cfg.accepts[0] : cfg.accepts;
-  assert.equal(a.scheme, "exact");
-  assert.equal(a.network, "eip155:1874");
-  assert.deepEqual(a.price, {
-    asset: "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
-    amount: "10000",
-    extra: { name: "Tether USD", version: "1" },
-  });
+  const opts = Array.isArray(cfg.accepts) ? cfg.accepts : [cfg.accepts];
+  assert.equal(opts.length, ADVERTISED.length, "one accepts option per advertised network");
+  assert.deepEqual(opts.map((o) => o.network), ADVERTISED);
+  for (const o of opts) {
+    const c = CHAINS[o.network as keyof typeof CHAINS];
+    assert.equal(o.scheme, "exact");
+    assert.deepEqual(o.price, { asset: c.asset.address, amount: "10000", extra: c.asset.extra });
+  }
+
+  // Arc's USDC entry must match the x402 SDK's own table, or signatures verify to nobody.
+  const { getDefaultAsset } = await import("@x402/evm");
+  const arc = CHAINS["eip155:5042002"];
+  const sdk = getDefaultAsset("eip155:5042002") as { asset: string; name: string; version: string; decimals: number };
+  assert.equal(arc.asset.address.toLowerCase(), sdk.asset.toLowerCase());
+  assert.deepEqual(arc.asset.extra, { name: sdk.name, version: sdk.version });
+  assert.equal(arc.asset.decimals, sdk.decimals);
+
+  // One scalar MAX_PLATFORM_PAYMENT and one shared price table are only valid while every
+  // asset has the same decimals. Fail loudly rather than overcharging by 10^12.
+  for (const n of NETWORKS) assert.equal(CHAINS[n].asset.decimals, 6, `${n} is not 6 decimals`);
+
+  // Arc rejects anything under 0.01 USDC with amount_below_minimum.
+  for (const [k, v] of Object.entries(PRICES)) assert.ok(BigInt(v) >= MIN_PAYMENT, `${k} below Arc minimum`);
 
   // SSE round trip, including chunk boundaries mid-event.
   const raw = encodeSse("step", { n: 1 }) + encodeSse("payment", { tx: "0xabc" });
@@ -124,20 +142,36 @@ async function main() {
   assert.throws(() => w.decrypt(w.encrypt(pk, "u1"), "u2")); // row swapped to another user
   const acct = privateKeyToAccount(pk);
   const shop = "0x000000000000000000000000000000000000dEaD";
-  const reqs = { scheme: "exact", network: "eip155:1874", asset: "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7", amount: "50000", payTo: shop, maxTimeoutSeconds: 300, extra: { name: "Tether USD", version: "1" } };
-  let captured: { primaryType: string; message: Record<string, unknown> } | null = null;
-  let direct = "";
-  const capture = { address: acct.address, signTypedData: async (m: Parameters<typeof acct.signTypedData>[0]) => { captured = m as never; return (direct = await acct.signTypedData(m)); } };
-  await new ExactClient(capture as never).createPaymentPayload(2, reqs as never);
-  const m = captured!.message as Record<string, unknown>;
-  const chk = w.checkAuthorization({ to: String(m.to), value: String(m.value), validAfter: String(m.validAfter), validBefore: String(m.validBefore), nonce: String(m.nonce) }, acct.address, shop);
-  assert.ok("message" in chk, "error" in chk ? chk.error : "");
-  assert.equal(await w.signWithKey(pk, chk.message!), direct);
-  const base = { to: shop, value: "50000", validAfter: "0", validBefore: String(Math.floor(Date.now() / 1000) + 300), nonce: "0x" + "ab".repeat(32) };
+  // Per chain: the custodial signature must equal what the official x402 client produces from an
+  // ordinary wallet on that same chain. Run per network, because the whole risk here is signing
+  // one chain's payment under another chain's EIP-712 domain.
+  const sigs = new Map<string, string>();
+  for (const n of NETWORKS) {
+    const c = CHAINS[n];
+    const reqs = { scheme: "exact", network: n, asset: c.asset.address, amount: "50000", payTo: shop, maxTimeoutSeconds: 300, extra: c.asset.extra };
+    let captured: { primaryType: string; message: Record<string, unknown> } | null = null;
+    let direct = "";
+    const capture = { address: acct.address, signTypedData: async (m: Parameters<typeof acct.signTypedData>[0]) => { captured = m as never; return (direct = await acct.signTypedData(m)); } };
+    await new ExactClient(capture as never).createPaymentPayload(2, reqs as never);
+    const m = captured!.message as Record<string, unknown>;
+    const chk = w.checkAuthorization({ to: String(m.to), value: String(m.value), validAfter: String(m.validAfter), validBefore: String(m.validBefore), nonce: String(m.nonce), network: n }, acct.address, shop);
+    assert.ok("message" in chk, "error" in chk ? chk.error : "");
+    assert.equal(chk.network, n);
+    assert.equal(await w.signWithKey(pk, chk.message!, n), direct, `${n} custodial signature differs from a normal wallet`);
+    sigs.set(n, direct);
+  }
+  // Same payment, different chain => different signature. This is what makes cross-chain replay
+  // impossible, and it only holds because chainId is inside the domain.
+  assert.equal(new Set(sigs.values()).size, NETWORKS.length, "signatures collide across chains");
+
+  const base = { to: shop, value: "50000", validAfter: "0", validBefore: String(Math.floor(Date.now() / 1000) + 300), nonce: "0x" + "ab".repeat(32), network: NETWORKS[0] };
   assert.ok("error" in w.checkAuthorization({ ...base, to: "0x1111111111111111111111111111111111111111" }, acct.address, shop)); // other recipient
   assert.ok("error" in w.checkAuthorization({ ...base, value: "999999999" }, acct.address, shop)); // over cap
   assert.ok("error" in w.checkAuthorization({ ...base, validBefore: "99999999999" }, acct.address, shop)); // too long-lived
   assert.ok("error" in w.checkAuthorization({ ...base, nonce: "0x12" }, acct.address, shop));
+  // An unknown chain must be refused outright, never signed under some other chain's domain.
+  assert.ok("error" in w.checkAuthorization({ ...base, network: "eip155:1" }, acct.address, shop));
+  assert.ok("error" in w.checkAuthorization({ ...base, network: "" }, acct.address, shop));
 
   // Wallet-unavailable hints: each cause must point at its own fix, never at "signed out".
   assert.match(w.walletErrorHint("DATABASE_URL is not set"), /DATABASE_URL/);
@@ -158,18 +192,25 @@ async function main() {
   // Live x402 check (opt-in): X402_CHECK_URL=http://localhost:3000 pnpm selftest
   const live = process.env.X402_CHECK_URL;
   if (live) {
-    const { facilitator } = await import("../lib/x402");
+    const { facilitators } = await import("../lib/x402");
     const { decodePaymentRequiredHeader } = await import("@x402/core/http");
-    const sup = await facilitator.getSupported();
-    assert.ok(sup.kinds.some((k) => k.scheme === "exact" && k.network === "eip155:1874"), "facilitator lacks exact/eip155:1874");
+    // Every advertised network must be served by one of the registered facilitators, or
+    // initialize() throws RouteConfigurationError and every paid route breaks, not just one.
+    const kinds = (await Promise.all(facilitators.map((f) => f.getSupported()))).flatMap((s) => s.kinds);
+    for (const n of ADVERTISED)
+      assert.ok(kinds.some((k) => k.scheme === "exact" && k.network === n), `no facilitator serves exact/${n}`);
     const r = await fetch(`${live}/api/v1/search?query=x402`);
     assert.equal(r.status, 402);
     const req = decodePaymentRequiredHeader(r.headers.get("payment-required") ?? "");
     assert.equal(req.x402Version, 2);
+    assert.deepEqual(req.accepts.map((o: { network: string }) => o.network), ADVERTISED, "402 must offer every chain");
+    for (const acc of req.accepts) {
+      const c = CHAINS[acc.network as keyof typeof CHAINS];
+      assert.equal(acc.asset.toLowerCase(), c.asset.address.toLowerCase());
+      assert.deepEqual(acc.extra, c.asset.extra, `${acc.network} advertises the wrong EIP-712 domain`);
+      assert.match(acc.payTo, /^0x[0-9a-fA-F]{40}$/);
+    }
     const acc = req.accepts[0];
-    assert.equal(acc.network, "eip155:1874");
-    assert.equal(acc.asset.toLowerCase(), "0xcedfb56113143d55b2358b8cfbb0deb5ad2f55a7");
-    assert.match(acc.payTo, /^0x[0-9a-fA-F]{40}$/);
     const bz = (req.extensions?.bazaar ?? {}) as { info?: { input?: { method?: string; queryParams?: unknown } } };
     assert.equal(bz.info?.input?.method, "GET", "402 lacks enriched bazaar extension");
     console.log(`live x402 ok: facilitator + 402 from ${live} (payTo ${acc.payTo})`);

@@ -13,7 +13,7 @@ export const DOCS_NAV: { title: string; items: { href: string; label: string }[]
       { href: "/docs/how-x402-works", label: "How x402 payments work" },
       { href: "/docs/web-app", label: "Using the web app" },
       { href: "/docs/direct-api", label: "Using the API directly" },
-      { href: "/docs/whitechain", label: "Whitechain + facilitator" },
+      { href: "/docs/networks", label: "Networks + facilitators" },
     ],
   },
   {

@@ -5,12 +5,13 @@ import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { getAddress, type Hex } from "viem";
 import { db } from "./db";
 import { wallets } from "./schema";
-import { USDT, whitechainSepolia } from "./chains";
+import { CHAINS, isNetwork, type Network } from "./chains";
 
 /**
  * Platform wallets for Google users (custodial, testnet). The key is generated server-side,
  * stored AES-256-GCM encrypted (AAD = user id, so rows can't be swapped), and only ever used
- * to sign an EIP-3009 USDT transfer to this deployment's PAY_TO_ADDRESS. It cannot sign anything else.
+ * to sign an EIP-3009 transfer, on an allowlisted chain, to this deployment's PAY_TO_ADDRESS.
+ * It cannot sign anything else.
  */
 
 function encKey() {
@@ -68,13 +69,23 @@ const TYPES = {
   ],
 } as const;
 
-export const MAX_PLATFORM_PAYMENT = BigInt(process.env.PLATFORM_WALLET_MAX_PER_PAYMENT || "5000000"); // 5 USDT
+// One scalar across chains: valid only while every asset is 6 decimals, which selftest asserts.
+export const MAX_PLATFORM_PAYMENT = BigInt(process.env.PLATFORM_WALLET_MAX_PER_PAYMENT || "5000000"); // 5 USDT/USDC
 
-export type AuthRequest = { to: string; value: string; validAfter: string; validBefore: string; nonce: string };
+/**
+ * The client names which chain it is paying on; it never supplies domain fields. The server
+ * rebuilds the whole EIP-712 domain from CHAINS, so a caller cannot steer a signature at
+ * another chain's token — see signWithKey.
+ */
+export type AuthRequest = { to: string; value: string; validAfter: string; validBefore: string; nonce: string; network: string };
 
-/** Policy: only USDT on our chain, only to PAY_TO, capped, short-lived. Returns the canonical message or an error. */
+/**
+ * Policy: an allowlisted chain's asset, only to PAY_TO, capped, short-lived. Returns the
+ * canonical message plus the resolved network, or an error.
+ */
 export function checkAuthorization(req: AuthRequest, from: Hex, payTo: string, now = Math.floor(Date.now() / 1000)) {
   try {
+    if (!isNetwork(req.network)) return { error: "unsupported network" };
     if (getAddress(req.to) !== getAddress(payTo)) return { error: "can only pay this deployment's PAY_TO_ADDRESS" };
     const value = BigInt(req.value);
     const validAfter = BigInt(req.validAfter);
@@ -82,7 +93,7 @@ export function checkAuthorization(req: AuthRequest, from: Hex, payTo: string, n
     if (value <= BigInt(0) || value > MAX_PLATFORM_PAYMENT) return { error: `amount must be 1..${MAX_PLATFORM_PAYMENT} base units` };
     if (validBefore <= BigInt(now) || validBefore > BigInt(now + 3600)) return { error: "validBefore must be within the next hour" };
     if (!/^0x[0-9a-fA-F]{64}$/.test(req.nonce)) return { error: "nonce must be bytes32" };
-    return { message: { from, to: getAddress(req.to), value, validAfter, validBefore, nonce: req.nonce as Hex } };
+    return { network: req.network, message: { from, to: getAddress(req.to), value, validAfter, validBefore, nonce: req.nonce as Hex } };
   } catch {
     return { error: "malformed authorization" };
   }
@@ -94,15 +105,21 @@ export async function signAuthorization(userId: string, req: AuthRequest, payTo:
   if (!row) return { error: "no wallet" };
   const checked = checkAuthorization(req, row.address as Hex, payTo);
   if ("error" in checked) return checked;
-  return { signature: await signWithKey(decrypt(row.encryptedKey, userId) as Hex, checked.message) };
+  return { signature: await signWithKey(decrypt(row.encryptedKey, userId) as Hex, checked.message, checked.network) };
 }
 
 type Message = Extract<ReturnType<typeof checkAuthorization>, { message: unknown }>["message"];
 
-/** EIP-3009 signature over the canonical USDT domain; the client never chooses domain or types. */
-export function signWithKey(pk: Hex, message: Message) {
+/**
+ * EIP-3009 signature over the canonical domain for `network`. Every domain field comes from
+ * CHAINS, never from the request, so the client can only pick an allowlisted chain — it can
+ * never make us sign a Whitechain USDT authorization for a payment it claimed was on Arc.
+ * chainId is part of the domain, so a signature cannot be replayed on the other chain.
+ */
+export function signWithKey(pk: Hex, message: Message, network: Network) {
+  const { asset, chain } = CHAINS[network];
   return privateKeyToAccount(pk).signTypedData({
-    domain: { name: USDT.extra.name, version: USDT.extra.version, chainId: whitechainSepolia.id, verifyingContract: USDT.address },
+    domain: { name: asset.extra.name, version: asset.extra.version, chainId: chain.id, verifyingContract: asset.address },
     types: TYPES,
     primaryType: "TransferWithAuthorization",
     message,

@@ -1,19 +1,20 @@
 import Link from "next/link";
 import { Code } from "@/components/code";
 import { ENDPOINTS, PRICES } from "@/lib/pricing";
-import { formatUsdt, USDT, FACILITATOR_URL } from "@/lib/chains";
+import { CHAINS, NETWORKS, formatAmount } from "@/lib/chains";
 
 const SNIPPET = `import { wrapFetchWithPaymentFromConfig } from "@x402/fetch";
 import { ExactEvmScheme } from "@x402/evm/exact/client";
 import { privateKeyToAccount } from "viem/accounts";
 
 const account = privateKeyToAccount(process.env.PRIVATE_KEY);
+// Every 402 offers both chains. Register the one you want to pay on.
 const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
-  schemes: [{ network: "eip155:1874", client: new ExactEvmScheme(account) }],
+  schemes: [{ network: "${NETWORKS[0]}", client: new ExactEvmScheme(account) }],
   spendControls: {
     allowedAssets: [{
-      network: "eip155:1874",
-      asset: "${USDT.address}",
+      network: "${NETWORKS[0]}",
+      asset: "${CHAINS[NETWORKS[0]].asset.address}", // ${CHAINS[NETWORKS[0]].asset.symbol}
       maxAmountPerPayment: "100000",
     }],
   },
@@ -35,7 +36,7 @@ export default function Home() {
       <section className="mx-auto grid max-w-7xl gap-12 px-4 pb-16 pt-14 sm:px-6 lg:grid-cols-[1fr_1.1fr] lg:pt-24">
         <div className="flex flex-col justify-center">
           <p className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 text-xs text-muted">
-            <span className="size-1.5 rounded-full bg-accent" /> Live on Whitechain Sepolia · x402 v2
+            <span className="size-1.5 rounded-full bg-accent" /> Live on {NETWORKS.map((n) => CHAINS[n].label).join(" + ")} · x402 v2
           </p>
           <h1 className="text-4xl font-semibold leading-[1.05] tracking-[-0.03em] sm:text-6xl">
             The web, as an API.
@@ -44,7 +45,7 @@ export default function Home() {
           </h1>
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted">
             TinyFish search, fetch, browser agents, research and datasets for your scripts and AI agents. Every request
-            settles in USDT on Whitechain through x402. No API keys, no subscriptions, no invoices.
+            settles through x402 on the chain you pick. No API keys, no subscriptions, no invoices.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/playground" className="rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink hover:opacity-90">
@@ -57,7 +58,7 @@ export default function Home() {
           <dl className="mt-10 grid max-w-md grid-cols-3 gap-6 border-t border-line pt-6 text-sm">
             <div>
               <dt className="text-muted">From</dt>
-              <dd className="mt-1 font-mono text-base">{formatUsdt(PRICES.search)} USDT</dd>
+              <dd className="mt-1 font-mono text-base">{formatAmount(PRICES.search, NETWORKS[0])}</dd>
             </div>
             <div>
               <dt className="text-muted">Gas for payer</dt>
@@ -78,7 +79,7 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
           <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
             <h2 className="text-2xl font-semibold tracking-tight">Price list</h2>
-            <p className="text-sm text-muted">USDT, 6 decimals. Settled only when the response succeeds.</p>
+            <p className="text-sm text-muted">Same price on every chain, 6 decimals. Settled only when the response succeeds.</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
@@ -87,7 +88,7 @@ export default function Home() {
                   <th className="py-3 pr-4 font-medium">Endpoint</th>
                   <th className="py-3 pr-4 font-medium">What it does</th>
                   <th className="py-3 pr-4 text-right font-medium">Base units</th>
-                  <th className="py-3 text-right font-medium">USDT</th>
+                  <th className="py-3 text-right font-medium">{NETWORKS.map((n) => CHAINS[n].asset.symbol).join(" / ")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -102,7 +103,7 @@ export default function Home() {
                     <td className="py-3.5 pr-4 text-muted">{e.description}</td>
                     <td className="py-3.5 pr-4 text-right font-mono text-muted">{PRICES[e.product]}</td>
                     <td className="py-3.5 text-right font-mono">
-                      {formatUsdt(PRICES[e.product])}
+                      {formatAmount(PRICES[e.product], NETWORKS[0])}
                       {e.priceNote && <span className="block text-[11px] text-muted">{e.priceNote}</span>}
                     </td>
                   </tr>
@@ -124,10 +125,15 @@ export default function Home() {
             </li>
           ))}
         </ol>
-        <p className="mt-6 text-sm text-muted">
-          Facilitator <code className="font-mono text-ink">{FACILITATOR_URL}</code> · Asset{" "}
-          <code className="break-all font-mono text-ink">{USDT.address}</code>
-        </p>
+        <div className="mt-6 space-y-1 text-sm text-muted">
+          {NETWORKS.map((n) => (
+            <p key={n}>
+              <span className="text-ink">{CHAINS[n].label}</span> · facilitator{" "}
+              <code className="font-mono text-ink">{CHAINS[n].facilitatorUrl}</code> · {CHAINS[n].asset.symbol}{" "}
+              <code className="break-all font-mono text-ink">{CHAINS[n].asset.address}</code>
+            </p>
+          ))}
+        </div>
       </section>
 
       <footer className="border-t border-line">
