@@ -1,13 +1,19 @@
 "use client";
-import { getDefaultConfig } from "@rainbow-me/rainbowkit";
-import { http } from "wagmi";
+import { connectorsForWallets } from "@rainbow-me/rainbowkit";
+import { braveWallet, coinbaseWallet, injectedWallet, rabbyWallet } from "@rainbow-me/rainbowkit/wallets";
+import { createConfig, http } from "wagmi";
 import { whitechainSepolia } from "./chains";
 
-export const wagmiConfig = getDefaultConfig({
-  appName: "tinyx402",
-  // WalletConnect needs a real id from cloud.reown.com; injected wallets (MetaMask) work without it.
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "00000000000000000000000000000000",
+// Browser wallets only, no WalletConnect, so no Reown project ID is needed.
+// Installed extensions (MetaMask, Rabby, OKX…) also appear automatically via EIP-6963.
+const connectors = connectorsForWallets(
+  [{ groupName: "Browser wallets", wallets: [injectedWallet, rabbyWallet, braveWallet, coinbaseWallet] }],
+  { appName: "tinyx402", projectId: "unused" }, // only read by WalletConnect-based wallets, none listed
+);
+
+export const wagmiConfig = createConfig({
   chains: [whitechainSepolia],
+  connectors,
   transports: { [whitechainSepolia.id]: http() },
   ssr: true,
 });

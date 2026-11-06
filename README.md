@@ -38,7 +38,6 @@ Minimum env for each feature:
 | Feature | Needs |
 | --- | --- |
 | All paid routes | `PAY_TO_ADDRESS`, `TINYFISH_API_KEY` |
-| WalletConnect (mobile) | `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` (MetaMask works without it) |
 | Server-side history | `DATABASE_URL`, then `pnpm db:push` |
 
 Research must be enabled on the TinyFish account, or TinyFish returns `403` and we return `503` (not charged).
