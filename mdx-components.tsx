@@ -22,19 +22,34 @@ export function Price({ product }: { product: Product }) {
   );
 }
 
+/**
+ * One row per chain, with the real path and that chain's own asset. `path` is the chain-less
+ * suffix; rendering a `<chain>` placeholder would leave the reader without a URL they can call,
+ * and the price has to name one asset per row because the prefix is what decides which you pay.
+ */
 export function Endpoint({ method, path, product }: { method: string; path: string; product: Product }) {
   return (
-    <div className="not-prose my-5 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3">
-      <span className={`rounded-md px-2 py-0.5 font-mono text-xs font-semibold ${method === "GET" ? "bg-accent-soft text-accent" : "bg-surface-2 text-warn"}`}>{method}</span>
-      {/* `path` is the chain-less suffix; the prefix is what picks the asset you pay in. */}
-      <code className="font-mono text-sm">
-        <span className="text-muted">/api/</span>
-        <span className="text-accent">&lt;chain&gt;</span>
-        {path}
-      </code>
-      <span className="ml-auto text-xs text-muted">
-        <span className="font-mono">{PRICES[product]}</span> base units · <Price product={product} />
-      </span>
+    <div className="not-prose my-5 divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
+      {NETWORKS.map((n) => (
+        <div key={n} className="flex flex-wrap items-center gap-3 px-4 py-3">
+          <span
+            className={`rounded-md px-2 py-0.5 font-mono text-xs font-semibold ${method === "GET" ? "bg-accent-soft text-accent" : "bg-surface-2 text-warn"}`}
+          >
+            {method}
+          </span>
+          <code className="font-mono text-sm">
+            <span className="text-muted">/api/</span>
+            <span className="text-accent">{CHAINS[n].slug}</span>
+            {path}
+          </code>
+          <span className="ml-auto text-xs text-muted">
+            <span className="font-mono">{PRICES[product]}</span> base units ·{" "}
+            <span className="rounded-md bg-accent-soft px-1.5 py-0.5 font-mono text-accent">
+              {formatAmount(PRICES[product], n)} {CHAINS[n].asset.symbol}
+            </span>
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
