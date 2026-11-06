@@ -1,0 +1,42 @@
+export const metadata = { title: "For coding agents" };
+
+# For coding agents
+
+Paste this into your agent's context, or point it at [`/llms.txt`](/llms.txt) and the [OpenAPI spec](/api/openapi).
+
+```text
+tinyx402: web APIs paid per request via x402 (no API key).
+
+Payment
+  protocol   x402 v2, scheme "exact" (EIP-3009, gasless for payer)
+  network    eip155:1874 (Whitechain Sepolia, RPC https://rpc.testnet.whitechain.io)
+  asset      0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7 (USDT, 6 decimals, domain "Tether USD" v1)
+  client     @x402/fetch wrapFetchWithPaymentFromConfig + @x402/evm/exact/client ExactEvmScheme
+  safety     ALWAYS set spendControls.allowedAssets with maxAmountPerPayment
+
+Endpoints (price in USDT base units)
+  GET  /api/v1/search?q=&limit=            10000   -> { results: [{ title, url, snippet, source }] }
+  POST /api/v1/fetch      { urls[], format, render }       15000   -> { results: [{ ok, title, content }] }
+  POST /api/v1/agent/run  { url, goal, output_schema? }    50000   -> { status, result, steps }
+  POST /api/v1/agent/run-sse  (same body, text/event-stream) 50000
+  POST /api/v1/research   { query, depth }                200000   -> { report, sources }
+  POST /api/v1/research?stream=1  (SSE)                   200000
+  POST /api/v1/browser    { timeout_seconds }              30000   -> { cdp_url, session_id }
+
+Rules
+  - 4xx/5xx responses are never charged; retry 502 once, do not retry 400.
+  - SSE endpoints send the settlement as a final `payment` event, not a header.
+  - Successful JSON responses carry a PAYMENT-RESPONSE header (base64 JSON with tx hash).
+```
+
+## Picking an endpoint
+
+- **You know the URL** → `fetch` with `render: false` (fast) or `true` (JS-heavy pages).
+- **You need URLs** → `search`, then `fetch` the best hits.
+- **Interaction needed** (clicks, forms, pagination) → `agent/run`, with an `output_schema` so the result is typed.
+- **Open question across many sources** → `research`.
+- **You want to drive the browser yourself** → `browser`, then `chromium.connectOverCDP(cdp_url)`.
+
+## Budgeting
+
+A `maxAmountPerPayment` of `200000` (0.20 USDT) covers every endpoint. Use `50000` to exclude research. Agents can read prices in advance from the `402` response or from `x-x402.amount` in the OpenAPI spec.

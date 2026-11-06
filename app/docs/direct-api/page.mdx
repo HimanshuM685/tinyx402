@@ -1,0 +1,167 @@
+export const metadata = { title: "Using the API directly" };
+
+# Using the API directly
+
+Any HTTP client that speaks x402 v2 can call tinyx402. The official SDKs handle the `402` handshake for you. Every example below pins the asset and a per-payment cap with spend controls.
+
+## TypeScript
+
+```bash
+npm i @x402/fetch @x402/evm viem
+```
+
+```ts
+import { wrapFetchWithPaymentFromConfig, decodePaymentResponseHeader } from "@x402/fetch";
+import { ExactEvmScheme } from "@x402/evm/exact/client";
+import { privateKeyToAccount } from "viem/accounts";
+
+const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
+const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
+  schemes: [{ network: "eip155:1874", client: new ExactEvmScheme(account) }],
+  spendControls: {
+    allowedAssets: [{
+      network: "eip155:1874",
+      asset: "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
+      maxAmountPerPayment: "100000",
+    }],
+  },
+});
+
+// GET
+const res = await paidFetch("https://your-domain.com/api/v1/search?q=example");
+console.log(await res.json());
+
+// Receipt
+const receipt = decodePaymentResponseHeader(res.headers.get("PAYMENT-RESPONSE")!);
+console.log(receipt.transaction); // 0x… on Whitechain Sepolia
+
+// POST
+const page = await paidFetch("https://your-domain.com/api/v1/fetch", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ urls: ["https://example.com"], format: "markdown" }),
+});
+```
+
+### Streaming (SSE)
+
+```ts
+const res = await paidFetch("https://your-domain.com/api/v1/agent/run-sse", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ url: "https://news.ycombinator.com", goal: "Top 3 story titles" }),
+});
+
+const reader = res.body!.pipeThrough(new TextDecoderStream()).getReader();
+let buf = "";
+for (;;) {
+  const { value, done } = await reader.read();
+  if (done) break;
+  buf += value;
+  for (let i; (i = buf.indexOf("\n\n")) >= 0; buf = buf.slice(i + 2)) {
+    const block = buf.slice(0, i);
+    const event = block.match(/^event: (.*)$/m)?.[1];
+    const data = block.match(/^data: (.*)$/m)?.[1];
+    if (data) console.log(event, JSON.parse(data)); // step… result… payment… done
+  }
+}
+```
+
+### Browser wallets (wagmi / viem)
+
+Pass any object with `address` and `signTypedData` to `ExactEvmScheme`:
+
+```ts
+import { useWalletClient } from "wagmi";
+
+const { data: wallet } = useWalletClient();
+const signer = {
+  address: wallet!.account.address,
+  signTypedData: (m) => wallet!.signTypedData({ account: wallet!.account, ...m }),
+};
+const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
+  schemes: [{ network: "eip155:1874", client: new ExactEvmScheme(signer) }],
+  spendControls: { allowedAssets: [{ network: "eip155:1874", asset: "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7", maxAmountPerPayment: "250000" }] },
+});
+```
+
+## Python
+
+```bash
+pip install "x402[requests,evm]>=2.27"
+```
+
+```python
+import os
+from eth_account import Account
+from x402 import SchemeRegistration, x402ClientConfig, x402ClientSync
+from x402.http import decode_payment_response_header
+from x402.http.clients import x402_requests
+from x402.mechanisms.evm.exact import ExactEvmScheme
+from x402.mechanisms.evm.signers import EthAccountSigner
+
+NETWORK = "eip155:1874"
+USDT = "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7"
+
+account = Account.from_key(os.environ["PRIVATE_KEY"])
+client = x402ClientSync.from_config(x402ClientConfig(
+    schemes=[SchemeRegistration(network=NETWORK, client=ExactEvmScheme(EthAccountSigner(account)))],
+    spend_controls={
+        "allowed_assets": [{"network": NETWORK, "asset": USDT, "max_amount_per_payment": "100000"}],
+    },
+))
+session = x402_requests(client)
+
+res = session.get("https://your-domain.com/api/v1/search", params={"q": "example"})
+print(res.json())
+print(decode_payment_response_header(res.headers["PAYMENT-RESPONSE"]))
+
+res = session.post("https://your-domain.com/api/v1/research", json={"query": "x402 adoption", "depth": "quick"})
+print(res.json()["report"])
+```
+
+For asyncio, use `x402Client` and `x402HttpxClient` from `x402.http.clients`. The configuration is the same.
+
+## Raw HTTP
+
+With curl you cannot sign, but you can see the protocol. Ask for the price:
+
+```bash
+curl -si "https://your-domain.com/api/v1/search?q=example" | grep -i payment-required \
+  | cut -d' ' -f2 | tr -d '\r' | base64 -d | jq
+```
+
+Then send a payload you signed elsewhere:
+
+```bash
+curl -s "https://your-domain.com/api/v1/search?q=example" \
+  -H "PAYMENT-SIGNATURE: $PAYMENT_PAYLOAD_B64" -D - | grep -i payment-response
+```
+
+The `PAYMENT-SIGNATURE` value is the base64 of:
+
+```json
+{
+  "x402Version": 2,
+  "accepted": { "...one entry from accepts[]..." : "" },
+  "payload": {
+    "signature": "0x…",
+    "authorization": {
+      "from": "0xYou", "to": "0xPayTo", "value": "10000",
+      "validAfter": "0", "validBefore": "1767225600", "nonce": "0x<32 random bytes>"
+    }
+  }
+}
+```
+
+The signature is EIP-712 over `TransferWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)` with domain `{ name: "Tether USD", version: "1", chainId: 1874, verifyingContract: <asset> }`.
+
+## The repo's CLI
+
+The repository ships a ready-made client:
+
+```bash
+PRIVATE_KEY=0x… TINYX402_URL=https://your-domain.com pnpm pay search "x402"
+PRIVATE_KEY=0x… pnpm pay agent https://news.ycombinator.com "top 3 titles" --stream
+PRIVATE_KEY=0x… pnpm pay research "state of x402" --stream
+```

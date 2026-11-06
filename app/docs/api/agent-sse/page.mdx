@@ -1,0 +1,42 @@
+export const metadata = { title: "Agent run (SSE) API" };
+
+# Agent run (SSE)
+
+Same as [Agent run](/docs/api/agent), but streams each browser action as a Server-Sent Event while the run is in progress.
+
+<Endpoint method="POST" path="/api/v1/agent/run-sse" product="agent" />
+
+The body is identical to `/api/v1/agent/run`. The response is `text/event-stream`.
+
+## Events
+
+| Event | Data |
+| --- | --- |
+| `step` | `{ step, action, input }`, one per browser action |
+| `result` | `{ status, result }` |
+| `payment` | `{ success, transaction, payer, network, paymentResponse }` |
+| `error` | `{ error: "run_failed", message, charged: false }` |
+| `done` | `{ ok }` |
+
+```text
+event: step
+data: {"step":0,"action":"navigate","input":{"url":"https://news.ycombinator.com"}}
+
+event: step
+data: {"step":1,"action":"observe","input":{}}
+
+event: result
+data: {"status":"completed","result":[…]}
+
+event: payment
+data: {"success":true,"transaction":"0x…","payer":"0x…","network":"eip155:1874"}
+
+event: done
+data: {"ok":true}
+```
+
+## Billing
+
+The payment is **verified** before the stream opens and **settled** only after `result`. The receipt arrives as the `payment` event, not as a `PAYMENT-RESPONSE` header. If the run errors or you disconnect early, the authorization is not submitted and you are not charged.
+
+Comment lines (`: ping`) are sent every 15 seconds to keep proxies from closing the connection.

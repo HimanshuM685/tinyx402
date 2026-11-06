@@ -1,0 +1,41 @@
+export const metadata = { title: "Search API" };
+
+# Search
+
+Structured web search results: titles, URLs, snippets and source domains.
+
+<Endpoint method="GET" path="/api/v1/search" product="search" />
+
+## Query parameters
+
+| Name | Type | Default | |
+| --- | --- | --- | --- |
+| `q` | string | — | Required. 1–400 chars. |
+| `limit` | integer | `10` | 1–20 |
+
+## Example
+
+```ts
+const res = await paidFetch("https://your-domain.com/api/v1/search?q=x402+protocol&limit=5");
+```
+
+## Response
+
+```json
+{
+  "query": "x402 protocol",
+  "provider": "brave",
+  "took_ms": 412,
+  "results": [
+    {
+      "position": 1,
+      "title": "x402 - Payments for the internet",
+      "url": "https://x402.org/",
+      "snippet": "An open protocol for internet-native payments…",
+      "source": "x402.org"
+    }
+  ]
+}
+```
+
+`provider` is `brave`, `tavily` or `duckduckgo`, depending on how the deployment is configured. Results are deduplicated by URL.

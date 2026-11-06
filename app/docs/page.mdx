@@ -1,0 +1,62 @@
+export const metadata = { title: "Quick start" };
+
+# Quick start
+
+tinyx402 gives scripts and AI agents web capabilities: search, page extraction, goal-driven browser automation and multi-source research. There are no API keys. Each request is paid with USDT on Whitechain through the [x402 protocol](/docs/how-x402-works).
+
+## 1. Get a testnet wallet
+
+Any EVM wallet works. Add **Whitechain Sepolia** (chain ID `1874`, RPC `https://rpc.testnet.whitechain.io`) and get test USDT. See [Whitechain + facilitator](/docs/whitechain#getting-test-funds). You don't need WBT for gas, because the facilitator submits the transfer.
+
+## 2. Try it in the browser
+
+Open the [playground](/playground), connect your wallet and press **Run with x402**. You sign one EIP-712 message per request, and the result, payment status and transaction hash appear side by side.
+
+## 3. Call it from code
+
+```bash
+npm i @x402/fetch @x402/evm viem
+```
+
+```ts
+import { wrapFetchWithPaymentFromConfig } from "@x402/fetch";
+import { ExactEvmScheme } from "@x402/evm/exact/client";
+import { privateKeyToAccount } from "viem/accounts";
+
+const account = privateKeyToAccount(process.env.PRIVATE_KEY);
+const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
+  schemes: [{ network: "eip155:1874", client: new ExactEvmScheme(account) }],
+  spendControls: {
+    allowedAssets: [{
+      network: "eip155:1874",
+      asset: "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
+      maxAmountPerPayment: "100000",
+    }],
+  },
+});
+
+const res = await paidFetch("https://your-domain.com/api/v1/search?q=example");
+console.log(await res.json());
+```
+
+`paidFetch` behaves like `fetch`. When the server answers `402 Payment Required`, it signs the payment, retries, and returns the paid response.
+
+## What it costs
+
+| Endpoint | Price |
+| --- | --- |
+| `GET /api/v1/search` | <Price product="search" /> |
+| `POST /api/v1/fetch` | <Price product="fetch" /> |
+| `POST /api/v1/agent/run` · `/run-sse` | <Price product="agent" /> |
+| `POST /api/v1/research` | <Price product="research" /> |
+| `POST /api/v1/browser` | <Price product="browser" /> |
+
+<Callout>
+You are only charged when a request succeeds. Invalid input (`400`), upstream failures (`502`) and anything else that returns a status of 400 or higher are never settled. [Error codes →](/docs/errors)
+</Callout>
+
+## Next
+
+- [Authentication via x402](/docs/authentication): why there is no API key
+- [Using the API directly](/docs/direct-api): TypeScript, Python and curl
+- [For coding agents](/docs/for-coding-agents): a compact brief to paste into your agent

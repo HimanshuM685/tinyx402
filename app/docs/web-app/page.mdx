@@ -1,0 +1,39 @@
+export const metadata = { title: "Using the web app" };
+
+# Using the web app
+
+The [playground](/playground) runs real, paid requests from your browser wallet. The [dashboard](/dashboard) shows what you have run and paid for.
+
+<Steps>
+
+### Connect a wallet
+
+Click **Connect wallet**. MetaMask, Rabby, Coinbase Wallet and any injected wallet work, plus WalletConnect for mobile wallets. If your wallet is on a different chain, the playground offers to switch to **Whitechain Sepolia** (`1874`) and adds it if missing.
+
+### Fund it with test USDT
+
+The playground shows your USDT balance next to the price of the selected endpoint. See [getting test funds](/docs/whitechain#getting-test-funds). You do not need WBT.
+
+### Pick an API and fill the form
+
+Choose Search, Fetch, Agent, Agent (SSE), Research or Browser. Defaults are pre-filled so you can run right away.
+
+### Set a spend cap
+
+**Spend cap / payment** is passed to `spendControls.allowedAssets[].maxAmountPerPayment`. The client refuses to sign anything above it, even if a server asks.
+
+### Run with x402
+
+Your wallet shows an EIP-712 signature request for a `TransferWithAuthorization` to the service's pay-to address. It's a signature only, not a transaction. Approve it, and the **Payment flow** panel shows each step:
+
+1. `GET/POST …` returns `HTTP 402`, with the decoded `PAYMENT-REQUIRED` available
+2. Requesting EIP-3009 signature
+3. Authorization signed (no gas)
+4. Paid retry with `PAYMENT-SIGNATURE` returns `HTTP 200`
+5. Settled on-chain, linked to the explorer
+
+</Steps>
+
+## Dashboard
+
+Each run is stored in your browser, together with the `PAYMENT-RESPONSE` receipt. When the deployment has a database (`DATABASE_URL`), the server-side log is merged in, so runs made from scripts with the same wallet show up too. Click a row to see its input and output.

@@ -1,0 +1,45 @@
+export const metadata = { title: "Research API" };
+
+# Research
+
+A multi-step research pipeline. Claude splits your question into sub-queries, the service searches them all, reads the best sources in parallel, and then writes a cited Markdown report.
+
+<Endpoint method="POST" path="/api/v1/research" product="research" />
+
+## Body
+
+| Field | Type | Default | |
+| --- | --- | --- | --- |
+| `query` | string | — | Required. 3–2000 chars. |
+| `depth` | `"quick"` \| `"standard"` \| `"deep"` | `"standard"` | `quick` uses 2 sub-queries and 4 sources, `standard` 4 and 8, `deep` 6 and 14. |
+
+## Response
+
+```json
+{
+  "query": "How does x402 work and who is adopting it?",
+  "queries": ["x402 protocol specification", "x402 adoption 2026", "…"],
+  "report": "## Summary\nx402 revives HTTP 402 … [1][3]\n\n## Findings\n…",
+  "sources": [{ "n": 1, "url": "https://x402.org/", "title": "x402" }],
+  "took_ms": 38211
+}
+```
+
+Citations `[n]` in `report` refer to `sources[].n`.
+
+## Streaming
+
+Add `?stream=1` (or send `Accept: text/event-stream`) to get progress events:
+
+| Event | Data |
+| --- | --- |
+| `status` | `{ phase: "planning" \| "synthesizing" }` |
+| `plan` | `{ queries }` |
+| `sources` | `{ count, urls }` |
+| `fetched` | `{ n, url, ok }` |
+| `result` | the full response object above |
+| `payment` / `error` / `done` | same as [Agent SSE](/docs/api/agent-sse#events) |
+
+```bash
+pnpm pay research "state of x402 adoption" --stream
+```

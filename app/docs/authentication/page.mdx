@@ -1,0 +1,39 @@
+export const metadata = { title: "Authentication via x402" };
+
+# Authentication via x402
+
+There is no API key, account or bearer token. **The payment is the credential.** A request that carries a valid x402 payment is served. A request without one gets `402 Payment Required` and instructions for how to pay.
+
+## What identifies you
+
+Your wallet address. Every settlement records the payer on-chain, and the server logs runs by payer address. The [dashboard](/dashboard) uses that address to show your history.
+
+## Headers
+
+| Header | Direction | Contents |
+| --- | --- | --- |
+| `PAYMENT-REQUIRED` | response, with `402` | Base64 JSON: price, asset, network, `payTo`, timeout |
+| `PAYMENT-SIGNATURE` | request | Base64 JSON payment payload with your EIP-3009 authorization signature |
+| `PAYMENT-RESPONSE` | response, with `200` | Base64 JSON settlement receipt: `transaction`, `payer`, `network` |
+
+The x402 client libraries read and write these for you. You only need them to [roll your own client](/docs/direct-api#raw-http).
+
+## Spend controls
+
+Since anyone can return a `402`, a client should never pay blindly. Always pin what you are willing to pay:
+
+```ts
+spendControls: {
+  allowedAssets: [{
+    network: "eip155:1874",
+    asset: "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7", // USDT
+    maxAmountPerPayment: "250000",                       // 0.25 USDT
+  }],
+}
+```
+
+The client refuses any requirement that names another asset or network, or asks for more than the cap. The playground lets you set this cap per session.
+
+## Signatures are single-use
+
+Each authorization has a random nonce and a short validity window, and is bound to one amount and recipient. If a signed payload leaks, the most anyone can do with it is pay *you* that same amount, once, before it expires.

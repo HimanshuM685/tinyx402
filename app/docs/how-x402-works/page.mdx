@@ -1,0 +1,71 @@
+export const metadata = { title: "How x402 payments work" };
+
+# How x402 payments work
+
+x402 brings back the long-unused HTTP `402 Payment Required` status code. The server states a price, the client attaches a signed payment, and a **facilitator** verifies and settles it on-chain. No accounts, invoices or card networks are involved.
+
+## The four messages
+
+<Sequence hops={[
+  ["client", "tinyx402", "GET /api/v1/search?q=…", "No payment attached."],
+  ["tinyx402", "client", "402 + PAYMENT-REQUIRED", "Price, asset, network, payTo."],
+  ["client", "", "sign EIP-3009 authorization", "Off-chain. No gas, no broadcast."],
+  ["client", "tinyx402", "GET … + PAYMENT-SIGNATURE"],
+  ["tinyx402", "facilitator", "/verify", "Signature, balance, amount, expiry."],
+  ["tinyx402", "", "run the search", "If this fails, stop here: nothing is settled."],
+  ["tinyx402", "facilitator", "/settle", "Only for 2xx responses."],
+  ["facilitator", "Whitechain", "transferWithAuthorization", "Facilitator pays the gas."],
+  ["tinyx402", "client", "200 + PAYMENT-RESPONSE", "Result plus receipt with the tx hash."],
+]} />
+
+### 1. Payment required
+
+Unpaid requests get `402` with a `PAYMENT-REQUIRED` header. Decoded, it looks like this:
+
+```json
+{
+  "x402Version": 2,
+  "resource": { "url": "https://…/api/v1/search?q=x402", "description": "Structured web search results" },
+  "accepts": [{
+    "scheme": "exact",
+    "network": "eip155:1874",
+    "asset": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
+    "amount": "10000",
+    "payTo": "0xYourPayToAddress",
+    "maxTimeoutSeconds": 300,
+    "extra": { "name": "Tether USD", "version": "1" }
+  }]
+}
+```
+
+`extra` is the token's EIP-712 domain. The client needs it to produce a signature the USDT contract will accept.
+
+### 2. Sign, don't send
+
+The client signs an EIP-3009 `TransferWithAuthorization` message: *from* you, *to* `payTo`, *value* `amount`, a validity window and a random nonce. Signing is free and off-chain. Your wallet never broadcasts a transaction, so you need **no native gas token**.
+
+### 3. Verify, work, settle
+
+tinyx402 asks the facilitator to **verify** the signature and your balance, then does the work. It only asks the facilitator to **settle** when the response is successful. The facilitator submits `transferWithAuthorization` on Whitechain and pays the gas.
+
+### 4. Receipt
+
+The final response carries `PAYMENT-RESPONSE`:
+
+```json
+{ "success": true, "transaction": "0x8c1f…", "network": "eip155:1874", "payer": "0xYou…" }
+```
+
+## Streaming endpoints
+
+The SSE endpoints (`/agent/run-sse`, `/research?stream=1`) verify the payment before the stream opens and settle after the run completes. Because headers are already sent by then, the receipt arrives as the last event:
+
+```text
+event: payment
+data: {"success":true,"transaction":"0x…","payer":"0x…","network":"eip155:1874"}
+
+event: done
+data: {"ok":true}
+```
+
+If the run fails, you receive `event: error` with `"charged": false`, and the authorization is never submitted.

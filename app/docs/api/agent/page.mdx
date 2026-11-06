@@ -1,0 +1,70 @@
+export const metadata = { title: "Agent run API" };
+
+# Agent run
+
+Give a start URL and a goal in plain language. A Claude-driven agent operates a real Chromium browser (observing, clicking, typing, scrolling, navigating) until it can return a structured result.
+
+<Endpoint method="POST" path="/api/v1/agent/run" product="agent" />
+
+## Body
+
+| Field | Type | Default | |
+| --- | --- | --- | --- |
+| `url` | string | — | Required. Start URL. |
+| `goal` | string | — | Required. What to accomplish and what to return. |
+| `output_schema` | JSON Schema | — | Optional. Constrains `result`. |
+| `max_steps` | integer | `20` | 1–40 browser actions. |
+
+## Example
+
+```ts
+const res = await paidFetch("https://your-domain.com/api/v1/agent/run", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    url: "https://news.ycombinator.com",
+    goal: "Return the top 3 stories with title, url and points.",
+    output_schema: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { title: { type: "string" }, url: { type: "string" }, points: { type: "integer" } },
+        required: ["title", "url"],
+      },
+    },
+  }),
+});
+```
+
+## Response
+
+```json
+{
+  "status": "completed",
+  "result": [
+    { "title": "…", "url": "https://…", "points": 412 }
+  ],
+  "final_url": "https://news.ycombinator.com/",
+  "steps": [
+    { "step": 1, "action": "observe", "input": {} },
+    { "step": 2, "action": "finish", "input": { "success": true, "result": ["…"] } }
+  ],
+  "took_ms": 9120
+}
+```
+
+`status` is one of:
+
+- `completed`: the goal was reached.
+- `failed`: the agent decided the goal is impossible, and `result` explains why.
+- `max_steps`: the agent ran out of steps.
+
+All three return 200 and are charged, because the browser work was done.
+
+## Safety
+
+- Navigation to private, loopback and link-local addresses is blocked, including through redirects.
+- The agent is told never to enter credentials or payment details, and to treat page content as data, not instructions.
+- Each run gets a fresh, isolated browser context that is destroyed afterwards.
+
+Want live progress? Use [Agent run (SSE)](/docs/api/agent-sse).

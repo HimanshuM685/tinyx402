@@ -1,0 +1,41 @@
+export const metadata = { title: "Browser session API" };
+
+# Browser session
+
+Creates a remote Chromium session that you drive yourself over the Chrome DevTools Protocol, with Playwright, Puppeteer or raw CDP.
+
+<Endpoint method="POST" path="/api/v1/browser" product="browser" />
+
+## Body
+
+| Field | Type | Default | |
+| --- | --- | --- | --- |
+| `timeout_seconds` | integer | `300` | 30–1800. The session closes after this time. |
+
+## Response
+
+```json
+{
+  "session_id": "5b1c…",
+  "cdp_url": "wss://connect.browserbase.com?signingKey=…",
+  "live_view_url": "https://www.browserbase.com/devtools-fullscreen/inspector.html?wss=…",
+  "expires_at": "2026-11-06T12:05:00Z"
+}
+```
+
+`cdp_url` is scoped to this one session through a signing key. It does not expose the operator's provider credentials.
+
+## Connect
+
+```ts
+import { chromium } from "playwright";
+
+const { cdp_url } = await (await paidFetch(".../api/v1/browser", { method: "POST", body: "{}", headers: { "Content-Type": "application/json" } })).json();
+const browser = await chromium.connectOverCDP(cdp_url);
+const page = browser.contexts()[0].pages()[0];
+await page.goto("https://example.com");
+```
+
+<Callout type="warn">
+This endpoint needs `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID` on the server. Without them it returns `501 not_configured`, and you are not charged.
+</Callout>
