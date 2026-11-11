@@ -159,6 +159,7 @@ function Balance({ address, network }: { address: `0x${string}`; network: Networ
 
 function AccountChip({ w }: { w: PlatformWallet }) {
   const qc = useQueryClient();
+  const [signOutError, setSignOutError] = useState("");
   return (
     <details className="relative">
       <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg border border-line px-2 py-1.5 text-sm hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
@@ -184,13 +185,20 @@ function AccountChip({ w }: { w: PlatformWallet }) {
         </Link>
         <button
           onClick={async () => {
-            await authClient.signOut();
-            qc.setQueryData(["platform-wallet"], { wallet: null, authEnabled: true });
+            setSignOutError("");
+            // `throw: false` is set by the SDK, so a failed sign-out comes back here instead of
+            // raising. Writing `wallet: null` regardless is how sign-out used to "work": the chip
+            // vanished while the session cookie lived on, and the next reload signed you back in.
+            const { error } = await authClient.signOut();
+            if (error) return setSignOutError(error.message || "Sign out failed");
+            // Refetch instead of asserting the new state: /api/wallet is what knows.
+            await qc.invalidateQueries({ queryKey: ["platform-wallet"] });
           }}
           className="mt-3 w-full rounded-lg border border-line px-3 py-2 text-sm hover:bg-surface-2"
         >
           Sign out
         </button>
+        {signOutError && <p role="alert" className="mt-2 rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">{signOutError}</p>}
       </div>
     </details>
   );
