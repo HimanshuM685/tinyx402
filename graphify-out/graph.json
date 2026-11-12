@@ -130,6 +130,19 @@
       "source_location": "L18"
     },
     {
+      "id": "lib_chains_chainconfig",
+      "label": "ChainConfig",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "Dashboard Views & UI",
+      "file_type": "code",
+      "norm_label": "chainconfig",
+      "source_file": "lib/chains.ts",
+      "source_location": "L14"
+    },
+    {
       "id": "lib_chains_network",
       "label": "Network",
       "_callable": true,
@@ -260,19 +273,6 @@
       "source_location": "L8"
     },
     {
-      "id": "lib_chains_chainconfig",
-      "label": "ChainConfig",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "Discovery & Legacy Routing",
-      "file_type": "code",
-      "norm_label": "chainconfig",
-      "source_file": "lib/chains.ts",
-      "source_location": "L14"
-    },
-    {
       "id": "mdx_components_hop",
       "label": "Hop",
       "_callable": true,
@@ -283,7 +283,7 @@
       "file_type": "code",
       "norm_label": "hop",
       "source_file": "mdx-components.tsx",
-      "source_location": "L127"
+      "source_location": "L130"
     },
     {
       "id": "app_api_chain_v1_datasets_route_dataset",
@@ -712,6 +712,30 @@
       "source_location": "L111"
     },
     {
+      "id": "lib_chains_formatamount",
+      "label": "formatAmount()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "Dashboard Views & UI",
+      "file_type": "code",
+      "norm_label": "formatamount()",
+      "source_file": "lib/chains.ts",
+      "source_location": "L115"
+    },
+    {
+      "id": "lib_chains_formatwithsymbol",
+      "label": "formatWithSymbol()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "Dashboard Views & UI",
+      "file_type": "code",
+      "norm_label": "formatwithsymbol()",
+      "source_file": "lib/chains.ts",
+      "source_location": "L121"
+    },
+    {
       "id": "lib_chains_isnetwork",
       "label": "isNetwork()",
       "_callable": true,
@@ -734,6 +758,18 @@
       "norm_label": "networkofchainid()",
       "source_file": "lib/chains.ts",
       "source_location": "L125"
+    },
+    {
+      "id": "lib_chains_override",
+      "label": "override()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "Dashboard Views & UI",
+      "file_type": "code",
+      "norm_label": "override()",
+      "source_file": "lib/chains.ts",
+      "source_location": "L40"
     },
     {
       "id": "lib_pay_client_clearruns",
@@ -952,42 +988,6 @@
       "source_location": "L106"
     },
     {
-      "id": "lib_chains_formatamount",
-      "label": "formatAmount()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "Discovery & Legacy Routing",
-      "file_type": "code",
-      "norm_label": "formatamount()",
-      "source_file": "lib/chains.ts",
-      "source_location": "L115"
-    },
-    {
-      "id": "lib_chains_formatwithsymbol",
-      "label": "formatWithSymbol()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "Discovery & Legacy Routing",
-      "file_type": "code",
-      "norm_label": "formatwithsymbol()",
-      "source_file": "lib/chains.ts",
-      "source_location": "L121"
-    },
-    {
-      "id": "lib_chains_override",
-      "label": "override()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "Discovery & Legacy Routing",
-      "file_type": "code",
-      "norm_label": "override()",
-      "source_file": "lib/chains.ts",
-      "source_location": "L40"
-    },
-    {
       "id": "mdx_components_callout",
       "label": "Callout()",
       "_callable": true,
@@ -997,7 +997,7 @@
       "file_type": "code",
       "norm_label": "callout()",
       "source_file": "mdx-components.tsx",
-      "source_location": "L115"
+      "source_location": "L118"
     },
     {
       "id": "mdx_components_endpoint",
@@ -1045,7 +1045,7 @@
       "file_type": "code",
       "norm_label": "sequence()",
       "source_file": "mdx-components.tsx",
-      "source_location": "L129"
+      "source_location": "L132"
     },
     {
       "id": "mdx_components_slug",
@@ -1069,7 +1069,7 @@
       "file_type": "code",
       "norm_label": "steps()",
       "source_file": "mdx-components.tsx",
-      "source_location": "L123"
+      "source_location": "L126"
     },
     {
       "id": "mdx_components_usemdxcomponents",
@@ -1081,7 +1081,7 @@
       "file_type": "code",
       "norm_label": "usemdxcomponents()",
       "source_file": "mdx-components.tsx",
-      "source_location": "L169"
+      "source_location": "L174"
     },
     {
       "id": "scripts_bazaar_register_main",
@@ -1297,7 +1297,7 @@
       "file_type": "code",
       "norm_label": "avatar()",
       "source_file": "components/account.tsx",
-      "source_location": "L199"
+      "source_location": "L207"
     },
     {
       "id": "components_account_balance",
@@ -1345,7 +1345,7 @@
       "file_type": "code",
       "norm_label": "googleicon()",
       "source_file": "components/account.tsx",
-      "source_location": "L205"
+      "source_location": "L213"
     },
     {
       "id": "components_account_short",
@@ -2015,6 +2015,28 @@
       "source_location": "L1"
     },
     {
+      "id": "lib_chains",
+      "label": "chains.ts",
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "Dashboard Views & UI",
+      "file_type": "code",
+      "norm_label": "chains.ts",
+      "source_file": "lib/chains.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "lib_chains_min_payment",
+      "label": "MIN_PAYMENT",
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "Dashboard Views & UI",
+      "file_type": "code",
+      "norm_label": "min_payment",
+      "source_file": "lib/chains.ts",
+      "source_location": "L109"
+    },
+    {
       "id": "lib_pay_client",
       "label": "pay-client.ts",
       "_origin": "ast",
@@ -2290,17 +2312,6 @@
       "source_location": "L20"
     },
     {
-      "id": "lib_chains",
-      "label": "chains.ts",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "Discovery & Legacy Routing",
-      "file_type": "code",
-      "norm_label": "chains.ts",
-      "source_file": "lib/chains.ts",
-      "source_location": "L1"
-    },
-    {
       "id": "lib_chains_chains",
       "label": "CHAINS",
       "_origin": "ast",
@@ -2310,17 +2321,6 @@
       "norm_label": "chains",
       "source_file": "lib/chains.ts",
       "source_location": "L49"
-    },
-    {
-      "id": "lib_chains_min_payment",
-      "label": "MIN_PAYMENT",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "Discovery & Legacy Routing",
-      "file_type": "code",
-      "norm_label": "min_payment",
-      "source_file": "lib/chains.ts",
-      "source_location": "L109"
     },
     {
       "id": "lib_chains_networks",
@@ -2386,7 +2386,7 @@
       "file_type": "code",
       "norm_label": "components",
       "source_file": "mdx-components.tsx",
-      "source_location": "L148"
+      "source_location": "L151"
     },
     {
       "id": "scripts_bazaar_register",
@@ -5042,6 +5042,7 @@
     {
       "id": "agents_nextjs_agent_rules",
       "label": "Next.js Agent Guidelines",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 18,
@@ -5057,6 +5058,7 @@
     {
       "id": "app_docs_api_datasets_page_tinyset_engine",
       "label": "TinySet Dataset Generation Engine",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5072,6 +5074,7 @@
     {
       "id": "app_docs_authentication_page_x402_http_headers",
       "label": "x402 HTTP Headers Standard",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5087,6 +5090,7 @@
     {
       "id": "app_docs_direct_api_page_cli_pay_tool",
       "label": "tinyx402 CLI Pay Tool (pnpm pay)",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5102,6 +5106,7 @@
     {
       "id": "app_docs_direct_api_page_direct_api_clients",
       "label": "Direct API Clients (TS, Python, curl)",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5117,6 +5122,7 @@
     {
       "id": "app_docs_errors_page_error_handling_model",
       "label": "Error Codes & Settlement Rules",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5132,6 +5138,7 @@
     {
       "id": "app_docs_how_x402_works_page_four_step_flow",
       "label": "Four-Step x402 Protocol Flow",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5147,6 +5154,7 @@
     {
       "id": "app_docs_how_x402_works_page_x402_protocol",
       "label": "x402 Payment Protocol Specification",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5162,6 +5170,7 @@
     {
       "id": "app_docs_networks_page_arc_testnet",
       "label": "Arc Testnet Network",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5177,6 +5186,7 @@
     {
       "id": "app_docs_networks_page_facilitators",
       "label": "Multi-Chain Facilitator Architecture",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5192,6 +5202,7 @@
     {
       "id": "app_docs_networks_page_whitechain_sepolia",
       "label": "Whitechain Sepolia Network",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5207,6 +5218,7 @@
     {
       "id": "app_docs_page_paid_fetch",
       "label": "paidFetch Client Wrapper",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5222,6 +5234,7 @@
     {
       "id": "app_docs_whitechain_page_usdt_asset",
       "label": "Whitechain Sepolia USDT Token",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5237,6 +5250,7 @@
     {
       "id": "app_docs_whitechain_page_whitechain_facilitator",
       "label": "Whitechain Payment Facilitator",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5252,6 +5266,7 @@
     {
       "id": "app_docs_api_agent_page_agent_run_endpoint",
       "label": "Agent Run API (/api/v1/agent/run)",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5267,6 +5282,7 @@
     {
       "id": "app_docs_api_agent_sse_page_agent_sse_endpoint",
       "label": "Agent Run SSE API (/api/v1/agent/run-sse)",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5282,6 +5298,7 @@
     {
       "id": "app_docs_api_browser_page_browser_session_endpoint",
       "label": "Browser Session API (/api/v1/browser)",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5297,6 +5314,7 @@
     {
       "id": "app_docs_api_datasets_page_datasets_endpoint",
       "label": "Datasets API (/api/v1/datasets)",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5312,6 +5330,7 @@
     {
       "id": "app_docs_api_fetch_page_fetch_endpoint",
       "label": "Fetch API (/api/v1/fetch)",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5327,6 +5346,7 @@
     {
       "id": "app_docs_api_research_page_research_endpoint",
       "label": "Research API (/api/v1/research)",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5342,6 +5362,7 @@
     {
       "id": "app_docs_api_search_page_search_endpoint",
       "label": "Search API (/api/v1/search)",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5357,6 +5378,7 @@
     {
       "id": "app_docs_for_coding_agents_page_coding_agent_brief",
       "label": "Coding Agent Reference Brief",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5372,6 +5394,7 @@
     {
       "id": "app_docs_networks_page_networks_and_facilitators",
       "label": "Networks and Facilitators",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5387,6 +5410,7 @@
     {
       "id": "app_docs_page_quick_start",
       "label": "Quick Start Guide",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5402,6 +5426,7 @@
     {
       "id": "app_docs_web_app_page_web_dashboard",
       "label": "Web Dashboard & Run History",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5417,6 +5442,7 @@
     {
       "id": "app_docs_web_app_page_web_playground",
       "label": "Web Playground UI",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5432,6 +5458,7 @@
     {
       "id": "readme_tinyx402",
       "label": "tinyx402 Project Overview",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5447,6 +5474,7 @@
     {
       "id": "app_docs_api_agent_page_agent_safety_sandbox",
       "label": "Agent Safety and Isolation Sandbox",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5462,6 +5490,7 @@
     {
       "id": "app_docs_api_datasets_page_priced_per_row",
       "label": "Per-Row Pricing Mechanism",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5477,6 +5506,7 @@
     {
       "id": "app_docs_authentication_page_payment_as_credential",
       "label": "Payment as Credential Pattern",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5492,6 +5522,7 @@
     {
       "id": "app_docs_authentication_page_single_use_authorization",
       "label": "Single-Use EIP-3009 Authorization",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5507,6 +5538,7 @@
     {
       "id": "app_docs_authentication_page_spend_controls",
       "label": "Client-Side Spend Controls",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5522,6 +5554,7 @@
     {
       "id": "app_docs_how_x402_works_page_deferred_sse_settlement",
       "label": "Deferred SSE Settlement",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5537,6 +5570,7 @@
     {
       "id": "app_docs_how_x402_works_page_gasless_payer_mechanism",
       "label": "Gasless Payer Model",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5552,6 +5586,7 @@
     {
       "id": "app_docs_networks_page_per_chain_endpoints",
       "label": "Per-Chain Endpoint Routing (/api/<chain>/v1/*)",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -5567,6 +5602,7 @@
     {
       "id": "app_docs_page_settlement_on_success",
       "label": "Settlement on Success Guarantee",
+      "_origin": "semantic",
       "author": null,
       "captured_at": null,
       "community": 6,
@@ -6274,19 +6310,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "components/account.tsx",
-      "source_location": "L166",
-      "weight": 1.0
-    },
-    {
-      "source": "components_account_balance",
-      "target": "lib_chains_formatamount",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "components/account.tsx",
-      "source_location": "L154",
+      "source_location": "L167",
       "weight": 1.0
     },
     {
@@ -6767,30 +6791,6 @@
       "context": "call",
       "source_file": "lib/x402.ts",
       "source_location": "L227",
-      "weight": 1.0
-    },
-    {
-      "source": "mdx_components_endpoint",
-      "target": "lib_chains_formatamount",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "mdx-components.tsx",
-      "source_location": "L48",
-      "weight": 1.0
-    },
-    {
-      "source": "mdx_components_price",
-      "target": "lib_chains_formatamount",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "mdx-components.tsx",
-      "source_location": "L20",
       "weight": 1.0
     },
     {
@@ -13479,7 +13479,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/account.tsx",
-      "source_location": "L199",
+      "source_location": "L207",
       "weight": 1.0
     },
     {
@@ -13490,7 +13490,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "components/account.tsx",
-      "source_location": "L205",
+      "source_location": "L213",
       "weight": 1.0
     },
     {
@@ -15041,7 +15041,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "mdx-components.tsx",
-      "source_location": "L127",
+      "source_location": "L130",
       "weight": 1.0
     },
     {
@@ -15052,7 +15052,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "mdx-components.tsx",
-      "source_location": "L148",
+      "source_location": "L151",
       "weight": 1.0
     },
     {
@@ -15063,7 +15063,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "mdx-components.tsx",
-      "source_location": "L169",
+      "source_location": "L174",
       "weight": 1.0
     },
     {
@@ -16207,7 +16207,7 @@
       "confidence_score": 0.85,
       "context": "collection",
       "source_file": "app/api/auth/[...path]/route.ts",
-      "source_location": "L6",
+      "source_location": "L9",
       "weight": 1.0
     },
     {
@@ -16219,7 +16219,7 @@
       "confidence_score": 0.85,
       "context": "collection",
       "source_file": "mdx-components.tsx",
-      "source_location": "L161",
+      "source_location": "L166",
       "weight": 1.0
     },
     {
@@ -16231,7 +16231,7 @@
       "confidence_score": 0.85,
       "context": "collection",
       "source_file": "mdx-components.tsx",
-      "source_location": "L162",
+      "source_location": "L167",
       "weight": 1.0
     },
     {
@@ -16243,7 +16243,7 @@
       "confidence_score": 0.85,
       "context": "collection",
       "source_file": "mdx-components.tsx",
-      "source_location": "L163",
+      "source_location": "L168",
       "weight": 1.0
     },
     {
@@ -16255,7 +16255,7 @@
       "confidence_score": 0.85,
       "context": "collection",
       "source_file": "mdx-components.tsx",
-      "source_location": "L164",
+      "source_location": "L169",
       "weight": 1.0
     },
     {
@@ -16267,7 +16267,7 @@
       "confidence_score": 0.85,
       "context": "collection",
       "source_file": "mdx-components.tsx",
-      "source_location": "L165",
+      "source_location": "L170",
       "weight": 1.0
     },
     {
@@ -16279,13 +16279,14 @@
       "confidence_score": 0.85,
       "context": "collection",
       "source_file": "mdx-components.tsx",
-      "source_location": "L166",
+      "source_location": "L171",
       "weight": 1.0
     },
     {
       "source": "app_docs_api_agent_page_agent_run_endpoint",
       "target": "app_docs_api_agent_page_agent_safety_sandbox",
       "relation": "conceptually_related_to",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/api/agent/page.mdx",
@@ -16296,6 +16297,7 @@
       "source": "app_docs_api_datasets_page_datasets_endpoint",
       "target": "app_docs_api_datasets_page_tinyset_engine",
       "relation": "conceptually_related_to",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/api/datasets/page.mdx",
@@ -16306,6 +16308,7 @@
       "source": "app_docs_authentication_page_payment_as_credential",
       "target": "app_docs_authentication_page_single_use_authorization",
       "relation": "conceptually_related_to",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/authentication/page.mdx",
@@ -16316,6 +16319,7 @@
       "source": "app_docs_authentication_page_payment_as_credential",
       "target": "app_docs_authentication_page_spend_controls",
       "relation": "conceptually_related_to",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/authentication/page.mdx",
@@ -16326,6 +16330,7 @@
       "source": "app_docs_direct_api_page_direct_api_clients",
       "target": "app_docs_authentication_page_spend_controls",
       "relation": "conceptually_related_to",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/direct-api/page.mdx",
@@ -16336,6 +16341,7 @@
       "source": "app_docs_direct_api_page_direct_api_clients",
       "target": "app_docs_direct_api_page_cli_pay_tool",
       "relation": "conceptually_related_to",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/direct-api/page.mdx",
@@ -16346,6 +16352,7 @@
       "source": "app_docs_how_x402_works_page_four_step_flow",
       "target": "app_docs_how_x402_works_page_deferred_sse_settlement",
       "relation": "conceptually_related_to",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/how-x402-works/page.mdx",
@@ -16356,6 +16363,7 @@
       "source": "app_docs_how_x402_works_page_four_step_flow",
       "target": "app_docs_how_x402_works_page_gasless_payer_mechanism",
       "relation": "conceptually_related_to",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/how-x402-works/page.mdx",
@@ -16366,6 +16374,7 @@
       "source": "app_docs_how_x402_works_page_x402_protocol",
       "target": "app_docs_how_x402_works_page_four_step_flow",
       "relation": "conceptually_related_to",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/how-x402-works/page.mdx",
@@ -16376,6 +16385,7 @@
       "source": "app_docs_networks_page_networks_and_facilitators",
       "target": "app_docs_networks_page_per_chain_endpoints",
       "relation": "conceptually_related_to",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/networks/page.mdx",
@@ -16386,6 +16396,7 @@
       "source": "app_docs_networks_page_whitechain_sepolia",
       "target": "app_docs_whitechain_page_usdt_asset",
       "relation": "conceptually_related_to",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/whitechain/page.mdx",
@@ -16396,6 +16407,7 @@
       "source": "app_docs_page_quick_start",
       "target": "app_docs_page_paid_fetch",
       "relation": "conceptually_related_to",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/page.mdx",
@@ -16406,6 +16418,7 @@
       "source": "app_docs_page_quick_start",
       "target": "app_docs_page_settlement_on_success",
       "relation": "conceptually_related_to",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/page.mdx",
@@ -16416,6 +16429,7 @@
       "source": "app_docs_web_app_page_web_playground",
       "target": "app_docs_web_app_page_web_dashboard",
       "relation": "conceptually_related_to",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/web-app/page.mdx",
@@ -16426,6 +16440,7 @@
       "source": "app_docs_api_datasets_page_datasets_endpoint",
       "target": "app_docs_api_datasets_page_priced_per_row",
       "relation": "rationale_for",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/api/datasets/page.mdx",
@@ -16436,6 +16451,7 @@
       "source": "app_docs_api_agent_page_agent_run_endpoint",
       "target": "app_docs_api_agent_sse_page_agent_sse_endpoint",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/api/agent/page.mdx",
@@ -16446,6 +16462,7 @@
       "source": "app_docs_api_datasets_page_datasets_endpoint",
       "target": "app_docs_page_paid_fetch",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/api/datasets/page.mdx",
@@ -16456,6 +16473,7 @@
       "source": "app_docs_authentication_page_payment_as_credential",
       "target": "app_docs_authentication_page_x402_http_headers",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/authentication/page.mdx",
@@ -16466,6 +16484,7 @@
       "source": "app_docs_authentication_page_payment_as_credential",
       "target": "app_docs_direct_api_page_direct_api_clients",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/authentication/page.mdx",
@@ -16476,6 +16495,7 @@
       "source": "app_docs_authentication_page_payment_as_credential",
       "target": "app_docs_web_app_page_web_dashboard",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/authentication/page.mdx",
@@ -16486,6 +16506,7 @@
       "source": "app_docs_direct_api_page_direct_api_clients",
       "target": "app_docs_networks_page_whitechain_sepolia",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/direct-api/page.mdx",
@@ -16496,6 +16517,7 @@
       "source": "app_docs_direct_api_page_direct_api_clients",
       "target": "app_docs_whitechain_page_usdt_asset",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/direct-api/page.mdx",
@@ -16506,6 +16528,7 @@
       "source": "app_docs_for_coding_agents_page_coding_agent_brief",
       "target": "app_docs_api_agent_page_agent_run_endpoint",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/for-coding-agents/page.mdx",
@@ -16516,6 +16539,7 @@
       "source": "app_docs_for_coding_agents_page_coding_agent_brief",
       "target": "app_docs_api_browser_page_browser_session_endpoint",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/for-coding-agents/page.mdx",
@@ -16526,6 +16550,7 @@
       "source": "app_docs_for_coding_agents_page_coding_agent_brief",
       "target": "app_docs_api_fetch_page_fetch_endpoint",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/for-coding-agents/page.mdx",
@@ -16536,6 +16561,7 @@
       "source": "app_docs_for_coding_agents_page_coding_agent_brief",
       "target": "app_docs_api_research_page_research_endpoint",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/for-coding-agents/page.mdx",
@@ -16546,6 +16572,7 @@
       "source": "app_docs_for_coding_agents_page_coding_agent_brief",
       "target": "app_docs_api_search_page_search_endpoint",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/for-coding-agents/page.mdx",
@@ -16556,6 +16583,7 @@
       "source": "app_docs_for_coding_agents_page_coding_agent_brief",
       "target": "app_docs_networks_page_whitechain_sepolia",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/for-coding-agents/page.mdx",
@@ -16566,6 +16594,7 @@
       "source": "app_docs_for_coding_agents_page_coding_agent_brief",
       "target": "app_docs_whitechain_page_usdt_asset",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/for-coding-agents/page.mdx",
@@ -16576,6 +16605,7 @@
       "source": "app_docs_how_x402_works_page_four_step_flow",
       "target": "app_docs_networks_page_whitechain_sepolia",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/how-x402-works/page.mdx",
@@ -16586,6 +16616,7 @@
       "source": "app_docs_how_x402_works_page_four_step_flow",
       "target": "app_docs_whitechain_page_whitechain_facilitator",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/how-x402-works/page.mdx",
@@ -16596,6 +16627,7 @@
       "source": "app_docs_how_x402_works_page_x402_protocol",
       "target": "app_docs_whitechain_page_usdt_asset",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/how-x402-works/page.mdx",
@@ -16606,6 +16638,7 @@
       "source": "app_docs_networks_page_facilitators",
       "target": "app_docs_networks_page_arc_testnet",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/networks/page.mdx",
@@ -16616,6 +16649,7 @@
       "source": "app_docs_networks_page_facilitators",
       "target": "app_docs_networks_page_whitechain_sepolia",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/networks/page.mdx",
@@ -16626,6 +16660,7 @@
       "source": "app_docs_networks_page_networks_and_facilitators",
       "target": "app_docs_networks_page_arc_testnet",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/networks/page.mdx",
@@ -16636,6 +16671,7 @@
       "source": "app_docs_networks_page_networks_and_facilitators",
       "target": "app_docs_networks_page_whitechain_sepolia",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/networks/page.mdx",
@@ -16646,6 +16682,7 @@
       "source": "app_docs_page_quick_start",
       "target": "app_docs_api_agent_page_agent_run_endpoint",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/page.mdx",
@@ -16656,6 +16693,7 @@
       "source": "app_docs_page_quick_start",
       "target": "app_docs_api_browser_page_browser_session_endpoint",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/page.mdx",
@@ -16666,6 +16704,7 @@
       "source": "app_docs_page_quick_start",
       "target": "app_docs_api_fetch_page_fetch_endpoint",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/page.mdx",
@@ -16676,6 +16715,7 @@
       "source": "app_docs_page_quick_start",
       "target": "app_docs_api_research_page_research_endpoint",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/page.mdx",
@@ -16686,6 +16726,7 @@
       "source": "app_docs_page_quick_start",
       "target": "app_docs_api_search_page_search_endpoint",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/page.mdx",
@@ -16696,6 +16737,7 @@
       "source": "app_docs_page_quick_start",
       "target": "app_docs_authentication_page_payment_as_credential",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/page.mdx",
@@ -16706,6 +16748,7 @@
       "source": "app_docs_page_quick_start",
       "target": "app_docs_direct_api_page_direct_api_clients",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/page.mdx",
@@ -16716,6 +16759,7 @@
       "source": "app_docs_page_quick_start",
       "target": "app_docs_errors_page_error_handling_model",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/page.mdx",
@@ -16726,6 +16770,7 @@
       "source": "app_docs_page_quick_start",
       "target": "app_docs_for_coding_agents_page_coding_agent_brief",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/page.mdx",
@@ -16736,6 +16781,7 @@
       "source": "app_docs_page_quick_start",
       "target": "app_docs_how_x402_works_page_x402_protocol",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/page.mdx",
@@ -16746,6 +16792,7 @@
       "source": "app_docs_page_quick_start",
       "target": "app_docs_networks_page_whitechain_sepolia",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/page.mdx",
@@ -16756,6 +16803,7 @@
       "source": "app_docs_page_quick_start",
       "target": "app_docs_web_app_page_web_playground",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/page.mdx",
@@ -16766,6 +16814,7 @@
       "source": "app_docs_web_app_page_web_playground",
       "target": "app_docs_authentication_page_spend_controls",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/web-app/page.mdx",
@@ -16776,6 +16825,7 @@
       "source": "app_docs_web_app_page_web_playground",
       "target": "app_docs_networks_page_whitechain_sepolia",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/web-app/page.mdx",
@@ -16786,6 +16836,7 @@
       "source": "app_docs_web_app_page_web_playground",
       "target": "app_docs_whitechain_page_usdt_asset",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/web-app/page.mdx",
@@ -16796,6 +16847,7 @@
       "source": "app_docs_whitechain_page_whitechain_facilitator",
       "target": "app_docs_networks_page_whitechain_sepolia",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/docs/whitechain/page.mdx",
@@ -16806,6 +16858,7 @@
       "source": "app_docs_api_fetch_page_fetch_endpoint",
       "target": "app_docs_api_browser_page_browser_session_endpoint",
       "relation": "semantically_similar_to",
+      "_origin": "semantic",
       "confidence": "INFERRED",
       "confidence_score": 0.75,
       "source_file": "app/docs/api/browser/page.mdx",
@@ -16816,6 +16869,7 @@
       "source": "app_docs_api_datasets_page_datasets_endpoint",
       "target": "app_docs_how_x402_works_page_deferred_sse_settlement",
       "relation": "conceptually_related_to",
+      "_origin": "semantic",
       "confidence": "INFERRED",
       "confidence_score": 0.85,
       "source_file": "app/docs/api/datasets/page.mdx",
@@ -16826,6 +16880,7 @@
       "source": "readme_tinyx402",
       "target": "app_docs_page_quick_start",
       "relation": "conceptually_related_to",
+      "_origin": "semantic",
       "confidence": "INFERRED",
       "confidence_score": 0.85,
       "source_file": "README.md",
@@ -16836,6 +16891,7 @@
       "source": "app_docs_errors_page_error_handling_model",
       "target": "app_docs_authentication_page_spend_controls",
       "relation": "references",
+      "_origin": "semantic",
       "confidence": "INFERRED",
       "confidence_score": 0.85,
       "source_file": "app/docs/errors/page.mdx",
@@ -16846,6 +16902,7 @@
       "source": "app_docs_api_agent_sse_page_agent_sse_endpoint",
       "target": "app_docs_api_research_page_research_endpoint",
       "relation": "semantically_similar_to",
+      "_origin": "semantic",
       "confidence": "INFERRED",
       "confidence_score": 0.85,
       "source_file": "app/docs/api/research/page.mdx",
@@ -16856,6 +16913,7 @@
       "source": "app_docs_api_agent_sse_page_agent_sse_endpoint",
       "target": "app_docs_how_x402_works_page_deferred_sse_settlement",
       "relation": "conceptually_related_to",
+      "_origin": "semantic",
       "confidence": "INFERRED",
       "confidence_score": 0.95,
       "source_file": "app/docs/api/agent-sse/page.mdx",
@@ -16866,6 +16924,7 @@
       "source": "app_docs_api_research_page_research_endpoint",
       "target": "app_docs_how_x402_works_page_deferred_sse_settlement",
       "relation": "conceptually_related_to",
+      "_origin": "semantic",
       "confidence": "INFERRED",
       "confidence_score": 0.95,
       "source_file": "app/docs/api/research/page.mdx",
@@ -16876,6 +16935,7 @@
       "source": "app_docs_errors_page_error_handling_model",
       "target": "app_docs_page_settlement_on_success",
       "relation": "conceptually_related_to",
+      "_origin": "semantic",
       "confidence": "INFERRED",
       "confidence_score": 0.95,
       "source_file": "app/docs/errors/page.mdx",
@@ -16969,5 +17029,5 @@
       "source_file": "app/docs/authentication/page.mdx"
     }
   ],
-  "built_at_commit": "b8f695e00e44c4aa9d50ad067f6d918061471a3f"
+  "built_at_commit": "725803ceaffb6279f32c185d443e7afd3e22f5fd"
 }
